@@ -4,7 +4,9 @@
 #if !defined soxr_rint_included
 #define soxr_rint_included
 
-#include "std-types.h"
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /* For x86, compiler-supplied versions of these functions (where available)
  * can have poor performance (e.g. mingw32), so prefer these asm versions: */

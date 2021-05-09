@@ -4,9 +4,9 @@
 #if !defined soxr_internal_included
 #define soxr_internal_included
 
-#include "std-types.h"
-
-
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #undef min
 #undef max

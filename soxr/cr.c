@@ -49,9 +49,9 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
       }
       switch (core_flags & 3) {
         case 0: if (WITH_CR32 ) STORE(coef , float ); break;
-        case 1: if (WITH_CR64 ) STORE(coef , double); break;
+        case 1: if (0 ) STORE(coef , double); break;
         case 2: if (WITH_CR32S) STORE(coef4, float ); break;
-        default:if (WITH_CR64S) STORE(coef4, double); break;
+        default:if (0) STORE(coef4, double); break;
       }
       f2 = f1, f1 = f0;
     }
@@ -62,8 +62,8 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
 #undef coef_coef
 
 #define IS_FLOAT32 (WITH_CR32 || WITH_CR32S) && \
-    (!(WITH_CR64 || WITH_CR64S) || sizeof_real == sizeof(float))
-#define WITH_FLOAT64 WITH_CR64 || WITH_CR64S
+    (1 || sizeof_real == sizeof(float))
+#define WITH_FLOAT64 0
 
 static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
 {

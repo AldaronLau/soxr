@@ -11,7 +11,7 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-#if 1 || WITH_CR64 || WITH_CR64S /* Always need this, for lsx_fir_to_phase. */
+#if 1 /* Always need this, for lsx_fir_to_phase. */
 #define DFT_FLOAT double
 #define DONE_WITH_FFT_CACHE done_with_fft_cache
 #define FFT_CACHE_CCRW fft_cache_ccrw
@@ -45,7 +45,7 @@
 #include "fft4g_cache.h"
 #endif
 
-#if WITH_CR64 || WITH_CR64S || !SOXR_LIB
+#if !SOXR_LIB
 #define DFT_FLOAT double
 #define ORDERED_CONVOLVE lsx_ordered_convolve
 #define ORDERED_PARTIAL_CONVOLVE lsx_ordered_partial_convolve

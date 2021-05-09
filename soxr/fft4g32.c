@@ -5,7 +5,6 @@
 #include "filter.h"
 #define FFT4G_FLOAT
 #include "fft4g.c"
-#include "soxr-config.h"
 
 #if WITH_CR32
 #include "rdft_t.h"

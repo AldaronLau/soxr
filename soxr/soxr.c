@@ -92,7 +92,7 @@ struct soxr {
 
 
 
-#if WITH_CR32 || WITH_CR32S || WITH_CR64 || WITH_CR64S
+#if WITH_CR32 || WITH_CR32S
   #include "filter.h"
 #else
   #define lsx_to_3dB(x) ((x)/(x))
@@ -195,7 +195,7 @@ soxr_io_spec_t soxr_io_spec(
 
 
 
-#if (WITH_CR32S && WITH_CR32) || (WITH_CR64S && WITH_CR64)
+#if (WITH_CR32S && WITH_CR32)
   #if defined __GNUC__ && defined __x86_64__
     #define CPUID(type, eax_, ebx_, ecx_, edx_) \
       __asm__ __volatile__ ( \
@@ -268,58 +268,6 @@ soxr_io_spec_t soxr_io_spec(
 #else
   #define should_use_simd32() true
 #endif
-
-
-
-#if WITH_CR64S && WITH_CR64
-  #if defined __GNUC__
-    #define XGETBV(type, eax_, edx_) \
-      __asm__ __volatile__ ( \
-        ".byte 0x0f, 0x01, 0xd0\n" \
-        : "=a"(eax_), "=d"(edx_) : "c" (type));
-  #elif defined _M_X64 && defined _MSC_FULL_VER && _MSC_FULL_VER >= 160040219
-    #include <immintrin.h>
-    #define XGETBV(type, eax_, edx_) do { \
-      union {uint64_t x; uint32_t y[2];} a = {_xgetbv(0)}; \
-      eax_ = a.y[0], edx_ = a.y[1]; \
-     } while(0)
-  #elif defined _M_IX86 && defined _MSC_VER
-    #define XGETBV(type, eax_, edx_) \
-      __asm pushad \
-      __asm mov ecx, type \
-      __asm _emit 0x0f \
-      __asm _emit 0x01 \
-      __asm _emit 0xd0 \
-      __asm mov eax_, eax \
-      __asm mov edx_, edx \
-      __asm popad
-  #else
-    #define XGETBV(type, eax_, edx_) eax_ = edx_ = 0
-  #endif
-
-  static bool cpu_has_simd64(void)
-  {
-    enum {OSXSAVE = 1 << 27, AVX = 1 << 28};
-    unsigned eax_, ebx_, ecx_, edx_;
-    CPUID(1, eax_, ebx_, ecx_, edx_);
-    if ((ecx_ & (OSXSAVE|AVX)) == (OSXSAVE|AVX)) {
-      XGETBV(0, eax_, edx_);
-      return (eax_ & 6) == 6;
-    }
-    return false;
-  }
-
-  static bool should_use_simd64(void)
-  {
-    char const * e;
-    return ((e = getenv("SOXR_USE_SIMD"  )))? !!atoi(e) :
-           ((e = getenv("SOXR_USE_SIMD64")))? !!atoi(e) : cpu_has_simd64();
-  }
-#else
-  #define should_use_simd64() true
-#endif
-
-
 
 extern control_block_t
   _soxr_rate32_cb,
@@ -436,7 +384,7 @@ soxr_t soxr_create(
         || ((!WITH_CR32 && !WITH_CR32S) || (p->q_spec.flags & SOXR_VR))
 #endif
 #if WITH_CR32 || WITH_CR32S
-        || !(WITH_CR64 || WITH_CR64S) || (p->q_spec.precision <= 20 && !(p->q_spec.flags & SOXR_DOUBLE_PRECISION))
+        || 1 || (p->q_spec.precision <= 20 && !(p->q_spec.flags & SOXR_DOUBLE_PRECISION))
 #endif
         ) {
       p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
@@ -449,20 +397,6 @@ soxr_t soxr_create(
           !WITH_CR32 || should_use_simd32()? &_soxr_rate32s_cb :
 #endif
           &_soxr_rate32_cb;
-    }
-#if WITH_CR64 || WITH_CR64S
-    else
-#endif
-#endif
-#if WITH_CR64 || WITH_CR64S
-    {
-      p->deinterleave = (deinterleave_t)_soxr_deinterleave;
-      p->interleave = (interleave_t)_soxr_interleave;
-      control_block =
-#if WITH_CR64S
-          !WITH_CR64 || should_use_simd64()? &_soxr_rate64s_cb :
-#endif
-          &_soxr_rate64_cb;
     }
 #endif
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
