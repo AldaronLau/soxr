@@ -135,7 +135,13 @@ fn main() {
         out.extend(&r.to_le_bytes());
     }
 
+    // Reading test....
+    let song = std::fs::read("test.raw").expect("No test!");
+
+    assert_eq!(song, out);
+
+/*
     println!("Writing out...");
 
-    std::fs::write("out.raw", out).expect("Could not write!");
+    std::fs::write("out.raw", out).expect("Could not write!");*/
 }
