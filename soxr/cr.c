@@ -219,10 +219,6 @@ static struct half_fir_info const * find_half_fir(
   return &firs[i];
 }
 
-#define have_pre_stage  (preM  * preL  != 1)
-#define have_arb_stage  (arbM  * arbL  != 1)
-#define have_post_stage (postM * postL != 1)
-
 #include "soxr.h"
 
 #include "stdio.h"
@@ -233,9 +229,6 @@ STATIC char const * resampler_init(
   double const io_ratio,        /* Input rate divided by output rate. */
   cr_core_t const * const core)
 {
-  size_t const sizeof_real = sizeof(char) << 2;
-  double const tolerance = 1 + 1e-5;
-
   double bits = 20.0;
   rolloff_t const rolloff = (rolloff_t)(0);
   int interpolator = -1;
@@ -249,34 +242,20 @@ STATIC char const * resampler_init(
   #define tighten(x) (Fs0-(Fs0-(x))*tbw_tighten)
 
   double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0, bits1 = min(bits,33);
-  double att = (bits1 + 1) * linear_to_dB(2.), attArb = att; /* +1: pass+stop */
+  double att = (bits1 + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
   int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
   bool upsample = false, rational = false, iOpt = true;
-  bool lq_bits = bits == 16;
-  bool lq_Fp0 = Fp0 == lq_bw0;
-  int n = 0, i, mode = lq_bits && rolloff == rolloff_medium? io_ratio > 1 ||
-    phase_response != 50 || !lq_Fp0 || Fs0 != 1 : ((int)ceil(bits1) - 6) / 4;
+  int n = 0;
+  int i;
+  int mode = ((int)ceil(bits1) - 6) / 4;
   struct half_fir_info const * half_fir_info;
   stage_t * s;
-
-  if (io_ratio < 1 && Fs0 - 1 > 1 - Fp0 / tolerance)
-    return "imaging greater than rolloff";
-  if (.002 / tolerance > tbw0 || tbw0 > .5 * tolerance)
-    return "transition bandwidth not in [0.2,50] % of nyquist";
-  if (.5 / tolerance > Fp0 || Fs0 > 1.5 * tolerance)
-    return "transition band not within [50,150] % of nyquist";
-  if (bits!=0 && (15 > bits || bits > 33))
-    return "precision not in [15,33] bits";
-  if (io_ratio <= 0)
-    return "resampling factor not positive";
-  if (0 > phase_response || phase_response > 100)
-    return "phase response not in [0=min-phase,100=max-phase] %";
 
   p->core = core;
   p->io_ratio = io_ratio;
   if (bits!=0) while (!n++) {                            /* Determine stages: */
     int try, L, M, x, maxL = interpolator > 0? 1 : mode? 2048 :
-      (int)ceil(400 * 1000. / (U100_l * (int)sizeof_real));
+      (int)ceil(400 * 1000. / (U100_l * (int)sizeof(float)));
     double d, epsilon = 0, frac;
     upsample = arbM < 1;
     for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
@@ -303,11 +282,10 @@ STATIC char const * resampler_init(
       ++mode, n = 0;
   }
 
-  p->num_stages = shr + have_pre_stage + have_arb_stage + have_post_stage;
+  p->num_stages = shr + (preM  * preL  != 1) + (arbM  * arbL  != 1) + (postM * postL != 1);
 
   p->stages = calloc((size_t)p->num_stages + 1, sizeof(*p->stages));
-  if (!p->stages)
-    return "out of memory";
+
   for (i = 0; i < p->num_stages; ++i) {
     p->stages[i].num = i;
     p->stages[i].shared = shared;
@@ -318,7 +296,7 @@ STATIC char const * resampler_init(
   alpha = postM / (io_ratio * (postL << 0));
 
   if ((n = p->num_stages) > 1) {                              /* Att. budget: */
-    if (have_arb_stage)
+    if ((arbM  * arbL  != 1))
       att += linear_to_dB(2.), attArb = att, --n;
     att += linear_to_dB((double)n);
   }
@@ -332,8 +310,8 @@ STATIC char const * resampler_init(
     s->preload = s->pre = s->pre_post >> 1;
   }
 
-  if (have_pre_stage) {
-    if (maintain_3dB_pt && have_post_stage) {    /* Trans. bands overlapping. */
+  if ((preM  * preL  != 1)) {
+    if (maintain_3dB_pt && (postM * postL != 1)) {    /* Trans. bands overlapping. */
       double x = tbw0 * _soxr_inv_f_resp(-3., att);
       x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
       if (x > .035) {
@@ -347,14 +325,14 @@ STATIC char const * resampler_init(
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
 
-  if (bits==0 && have_arb_stage) {                /* `Quick' cubic arb stage: */
+  if (bits==0 && (arbM  * arbL  != 1)) {                /* `Quick' cubic arb stage: */
     s->fn = core->cubic_stage_fn;
     s->mult = 1.0;
     s->step.whole = (int64_t)(arbM * MULT32 + .5);
     s->pre_post = max(3, s->step.integer);
     s->preload = s->pre = 1;
     s->out_in_ratio = MULT32 / (double)s->step.whole;
-  } else if (have_arb_stage) {                     /* Higher quality arb stage: */
+  } else if ((arbM  * arbL  != 1)) {                     /* Higher quality arb stage: */
     static const float rolloffs[] = {-.01f, -.3f, 0, -.103f};
     poly_fir_t const * f = &core->poly_firs[6*(upsample+!!preM)+mode-!upsample];
     int order, num_coefs = (int)f->interp[0].scalar, phase_bits, phases;
@@ -386,7 +364,7 @@ STATIC char const * resampler_init(
         phases <<= 1, arbL <<= 1, arbM *= 2;
       at = arbL * (s->phase0 = .5 * (num_coefs & 1));
       order = i + (i && mode > 4);
-      coefs_size = (size_t)(num_coefs * phases * (order+1)) * sizeof_real;
+      coefs_size = (size_t)(num_coefs * phases * (order+1)) * sizeof(float);
     } while (interpolator < 0 && i < 2 && f->interp[i+1].fn &&
         coefs_size / 1000 > 400);
 
@@ -422,18 +400,18 @@ STATIC char const * resampler_init(
     ++s;
   }
 
-  if (have_post_stage)
+  if ((postM * postL != 1))
     dft_stage_init(1, tighten(Fp0 / (upsample? alpha : 1)), upsample? max(2 -
         Fs0 / alpha, 1) : Fs0, (double)max(postL, postM), att, phase_response,
         s++, postL, postM, 10,
         17, core->rdft_cb);
 
   for (i = 0, s = p->stages; i < p->num_stages; ++i, ++s) {
-    fifo_create(&s->fifo, (int)sizeof_real);
+    fifo_create(&s->fifo, (int)sizeof(float));
     memset(fifo_reserve(&s->fifo, s->preload), 0,
-        sizeof_real * (size_t)s->preload);
+        sizeof(float) * (size_t)s->preload);
   }
-  fifo_create(&s->fifo, (int)sizeof_real);
+  fifo_create(&s->fifo, (int)sizeof(float));
   return 0;
 }
 

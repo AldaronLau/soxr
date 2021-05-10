@@ -111,8 +111,6 @@ typedef struct stage {
 #define stage_occupancy(s) max(0, fifo_occupancy(&(s)->fifo) - (s)->pre_post)
 #define stage_read_p(s) ((float *)fifo_read_ptr(&(s)->fifo) + (s)->pre)
 
-#define lq_bw0  (1385/2048.) /* ~.67625, FP exact. */
-
 typedef enum {rolloff_small, rolloff_medium, rolloff_none} rolloff_t;
 
 typedef struct {
