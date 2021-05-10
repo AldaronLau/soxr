@@ -92,36 +92,8 @@ extern control_block_t
   _soxr_rate64s_cb,
   _soxr_vr32_cb;
 
-soxr_t soxr_create(
-  double input_rate, double output_rate,
-  soxr_error_t * error0)
-{
-  double io_ratio = output_rate!=0? input_rate!=0?
-    input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
-  soxr_t p = 0;
-  soxr_error_t error = 0;
 
-  if (!error && !(p = calloc(sizeof(*p), 1))) error = "malloc failed";
 
-  if (p) {
-    control_block_t * control_block;
-
-    p->io_ratio = io_ratio;
-
-    control_block = &_soxr_rate32_cb;
-
-    memcpy(&p->control_block, control_block, sizeof(p->control_block));
-
-    if (io_ratio != 0) {
-      error = soxr_set_io_ratio(p, io_ratio, 0);
-    }
-  }
-  if (error)
-    soxr_delete(p), p = 0;
-  if (error0)
-    *error0 = error;
-  return p;
-}
 
 static void soxr_delete0(soxr_t p)
 {
@@ -139,25 +111,7 @@ static void soxr_delete0(soxr_t p)
   memset(p, 0, sizeof(*p));
 }
 
-
-
-double soxr_delay(soxr_t p)
-{
-  return
-    (p && !p->error && p->resamplers)? resampler_delay(p->resamplers[0]) : 0;
-}
-
-
-
-static soxr_error_t fatal_error(soxr_t p, soxr_error_t error)
-{
-  soxr_delete0(p);
-  return p->error = error;
-}
-
-
-
-static soxr_error_t initialise(soxr_t p)
+static void initialise(soxr_t p)
 {
   unsigned i;
   size_t shared_size, channel_size;
@@ -166,64 +120,61 @@ static soxr_error_t initialise(soxr_t p)
   p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
   p->shared = calloc(shared_size, 1);
   p->resamplers = calloc(sizeof(*p->resamplers), 1);
-  if (!p->shared || !p->channel_ptrs || !p->resamplers)
-    return fatal_error(p, "malloc failed");
 
   for (i = 0; i < 1; ++i) {
-    soxr_error_t error;
-    if (!(p->resamplers[i] = calloc(channel_size, 1)))
-      return fatal_error(p, "malloc failed");
-    error = resampler_create(
+    p->resamplers[i] = calloc(channel_size, 1);
+    
+    resampler_create(
         p->resamplers[i],
         p->shared,
         p->io_ratio,
         1.0);
-    if (error)
-      return fatal_error(p, error);
   }
-  return 0;
 }
 
-soxr_error_t soxr_set_io_ratio(soxr_t p, double io_ratio, size_t slew_len)
+static void soxr_set_io_ratio(soxr_t p, double io_ratio)
 {
   unsigned i;
-  soxr_error_t error;
-  if (!p)                 return "invalid soxr_t pointer";
-  if ((error = p->error)) return error;
-  if (io_ratio <= 0)      return "I/O ratio out-of-range";
   if (!p->channel_ptrs) {
     p->io_ratio = io_ratio;
-    return initialise(p);
+    initialise(p);
   }
   if (p->control_block[8]) {
-    for (i = 0; !error && i < 1; ++i)
-      resampler_set_io_ratio(p->resamplers[i], io_ratio, slew_len);
-    return error;
+    for (i = 0; i < 1; ++i)
+      resampler_set_io_ratio(p->resamplers[i], io_ratio, 0);
   }
-  return fabs(p->io_ratio - io_ratio) < 1e-15? 0 :
-    "varying O/I ratio is not supported with this quality level";
 }
 
+soxr_t soxr_create(
+  double input_rate, double output_rate)
+{
+  double io_ratio = output_rate!=0? input_rate!=0?
+    input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
+  soxr_t p = calloc(sizeof(*p), 1);
 
+    control_block_t * control_block;
+
+    p->io_ratio = io_ratio;
+
+    control_block = &_soxr_rate32_cb;
+
+    memcpy(&p->control_block, control_block, sizeof(p->control_block));
+
+    soxr_set_io_ratio(p, io_ratio);
+
+  return p;
+}
+
+double soxr_delay(soxr_t p)
+{
+  return
+    (p && !p->error && p->resamplers)? resampler_delay(p->resamplers[0]) : 0;
+}
 
 void soxr_delete(soxr_t p)
 {
   if (p)
     soxr_delete0(p), free(p);
-}
-
-
-
-soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
-{
-  if (p) {
-    struct soxr tmp = *p;
-    soxr_delete0(p);
-    memset(p, 0, sizeof(*p));
-    memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
-    return soxr_set_io_ratio(p, tmp.io_ratio, 0);
-  }
-  return "invalid soxr_t pointer";
 }
 
 static size_t soxr_input(soxr_t p, void const * in, size_t len)

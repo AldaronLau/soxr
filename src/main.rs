@@ -8,8 +8,6 @@ extern "C" {
     fn soxr_create(
         input_rate: f64,      /* Input sample-rate. */
         output_rate: f64,     /* Output sample-rate. */
-        /* All following arguments are optional (may be set to NULL). */
-        error: *mut *const c_char,   /* To report any error during creation. */
     ) -> *mut c_void;               
 
     /* If not using an app-supplied input function, after creating a stream
@@ -40,7 +38,6 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
         soxr_create(
             hz_in,
             hz_out,
-            std::ptr::null_mut(),
         )
     };
 
