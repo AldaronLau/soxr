@@ -23,7 +23,7 @@ static void cubic_stage_fn(stage_t * p, fifo_t * output_fifo)
   for (i = 0; p->at.integer < num_in; ++i, p->at.whole += p->step.whole) {
     float const * s = input + p->at.integer;
     double x = p->at.fraction * (1 / MULT32);
-    double b = .5*(s[1]+s[-1])-*s, a = (1/6.)*(s[2]-s[1]+s[-1]-*s-4*b);
+    double b = 0.5*(s[1]+s[-1])-*s, a = (1/6.0)*(s[2]-s[1]+s[-1]-*s-4*b);
     double c = s[1]-*s-a-b;
     output[i] = (float)(p->mult * (((a*x + b)*x + c)*x + *s));
   }
@@ -32,26 +32,6 @@ static void cubic_stage_fn(stage_t * p, fifo_t * output_fifo)
   fifo_read(&p->fifo, p->at.integer, NULL);
   p->at.integer = 0;
 }
-
-
-
-#if defined __AVX__
-  #define DEFINED_AVX 1
-#else
-  #define DEFINED_AVX 0
-#endif
-
-#if defined __x86_64__ || defined _M_X64 || defined i386 || defined _M_IX86
-  #define DEFINED_X86 1
-#else
-  #define DEFINED_X86 0
-#endif
-
-#if defined __arm__
-  #define DEFINED_ARM 1
-#else
-  #define DEFINED_ARM 0
-#endif
 
 #include "half-coefs.h"
 
@@ -68,17 +48,15 @@ static void cubic_stage_fn(stage_t * p, fifo_t * output_fifo)
 #include "half-fir.h"
 
 static half_fir_info_t const half_firs[] = {
-  { 7, half_fir_coefs_7 , h7 , 0  , 120.65f},
-  { 8, half_fir_coefs_8 , h8 , 0  , 136.51f},
-  { 9, half_fir_coefs_9 , h9 , 0  , 152.32f},
+  { 7, half_fir_coefs_7, h7, 0, 120.65f },
+  { 8, half_fir_coefs_8, h8, 0, 136.51f },
+  { 9, half_fir_coefs_9, h9, 0, 152.32f },
 };
 
 #define COEFS (float * __restrict)p->shared->poly_fir_coefs
 #define VAR_LENGTH p->n
 #define VAR_CONVOLVE(n) while (j < (n)) _
 #define VAR_POLY_PHASE_BITS p->phase_bits
-
-
 
 #define FUNCTION vpoly0
 #define FIR_LENGTH VAR_LENGTH
@@ -105,8 +83,6 @@ static half_fir_info_t const half_firs[] = {
 #define FIR_LENGTH VAR_LENGTH
 #define CONVOLVE(n) VAR_CONVOLVE(n)
 #include "poly-fir.h"
-
-
 
 
 #define poly_fir_convolve_U100 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
@@ -169,10 +145,8 @@ static cr_core_t const cr_core = {
   poly_firs, _soxr_rdft32_cb
 };
 
-char const * rate_create(void * channel, void * shared, double io_ratio,
-    double scale)
-{
-  return resampler_init(channel, shared, io_ratio, scale, &cr_core);
+char const * rate_create(void * channel, void * shared, double io_ratio) {
+  return resampler_init(channel, shared, io_ratio, &cr_core);
 }
 
 fn_t _soxr_rate32_cb[] = {

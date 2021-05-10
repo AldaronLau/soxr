@@ -25,7 +25,7 @@
   coef_coef(C,T,0) = (T)f0;}
 
 static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
-    int num_phases, int interp_order, double multiplier,
+    int num_phases, int interp_order,
     core_flags_t core_flags, alloc_t const * mem)
 {
   int i, j, length = num_coefs * num_phases * (interp_order + 1);
@@ -36,7 +36,7 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     for (j = num_phases - 1; j >= 0; --j) {
       double f0 = fm1, b = 0, c = 0, d = 0; /* = 0 to kill compiler warning */
       int pos = i * num_phases + j - 1;
-      fm1 = pos > 0 ? coefs[pos - 1] * multiplier : 0;
+      fm1 = pos > 0 ? coefs[pos - 1] : 0;
       switch (interp_order) {
         case 1: b = f1 - f0; break;
         case 2: b = f1 - (.5 * (f2+f0) - f1) - f0; c = .5 * (f2+f0) - f1; break;
@@ -155,7 +155,7 @@ static int set_dft_length(int num_taps, int min, int large)
 
 static void dft_stage_init(
     unsigned instance, double Fp, double Fs, double Fn, double att,
-    double phase_response, stage_t * p, int L, int M, double * multiplier,
+    double phase_response, stage_t * p, int L, int M,
     unsigned min_dft_size, unsigned large_dft_size,
     fn_t const * RDFT_CB)
 {
@@ -177,7 +177,7 @@ static void dft_stage_init(
     dft_length = set_dft_length(num_taps, (int)min_dft_size, (int)large_dft_size);
     f->coefs = rdft_calloc((size_t)dft_length, sizeof_real);
     offset = dft_length - num_taps + 1;
-    m = (1. / dft_length) * rdft_multiplier() * L * *multiplier;
+    m = (1. / dft_length) * rdft_multiplier() * L;
     for (i = 0; i < num_taps; ++i)
         ((float *)f->coefs)[(i + offset) & (dft_length - 1)] =(float)(h[i] * m);
     free(h);
@@ -197,7 +197,6 @@ static void dft_stage_init(
     f->num_taps = num_taps;
     f->dft_length = dft_length;
   }
-  *multiplier = 1;
   p->out_in_ratio = (double)L / M;
   p->core_flags = 0;
   p->rdft_cb = RDFT_CB;
@@ -232,7 +231,6 @@ STATIC char const * resampler_init(
   rate_t * const p,             /* Per audio channel. */
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
-  double multiplier,            /* Linear gain to apply during conversion. */
   cr_core_t const * const core)
 {
   size_t const sizeof_real = sizeof(char) << 2;
@@ -306,10 +304,7 @@ STATIC char const * resampler_init(
   }
 
   p->num_stages = shr + have_pre_stage + have_arb_stage + have_post_stage;
-  if (!p->num_stages && multiplier != 1) {
-    bits = arbL = 0;                         /* Use cubic_stage in this case. */
-    ++p->num_stages;
-  }
+
   p->stages = calloc((size_t)p->num_stages + 1, sizeof(*p->stages));
   if (!p->stages)
     return "out of memory";
@@ -347,14 +342,14 @@ STATIC char const * resampler_init(
     }
     Fn1 = preM? max(preL, preM) : arbM / arbL;
     dft_stage_init(0, tighten(Fp1), Fs1, Fn1, att, phase_response, s++, preL,
-        max(preM, 1), &multiplier, 10,
+        max(preM, 1), 10,
         17, core->rdft_cb);
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
 
   if (bits==0 && have_arb_stage) {                /* `Quick' cubic arb stage: */
     s->fn = core->cubic_stage_fn;
-    s->mult = multiplier, multiplier = 1;
+    s->mult = 1.0;
     s->step.whole = (int64_t)(arbM * MULT32 + .5);
     s->pre_post = max(3, s->step.integer);
     s->preload = s->pre = 1;
@@ -400,10 +395,9 @@ STATIC char const * resampler_init(
       double * coefs = _soxr_design_lpf(
           Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
-          coefs, num_coefs, phases, order, multiplier, 0, &core->mem);
+          coefs, num_coefs, phases, order, 0, &core->mem);
       free(coefs);
     }
-    multiplier = 1;
     s->fn = f1->fn;
     s->pre_post = num_coefs - 1;
     s->preload = ((num_coefs - 1) >> 1) + (num_coefs - num_coefs);
@@ -431,7 +425,7 @@ STATIC char const * resampler_init(
   if (have_post_stage)
     dft_stage_init(1, tighten(Fp0 / (upsample? alpha : 1)), upsample? max(2 -
         Fs0 / alpha, 1) : Fs0, (double)max(postL, postM), att, phase_response,
-        s++, postL, postM, &multiplier, 10,
+        s++, postL, postM, 10,
         17, core->rdft_cb);
 
   for (i = 0, s = p->stages; i < p->num_stages; ++i, ++s) {
