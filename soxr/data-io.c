@@ -39,14 +39,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
 
 #include "rint.h"
 
-
-
-#if defined FE_INVALID && defined FPU_RINT32 && defined __STDC_VERSION__
-  #if __STDC_VERSION__ >= 199901L
-    #pragma STDC FENV_ACCESS ON
-  #endif
-#endif
-
 #define FLOATX float
 
 #define LSX_RINT_CLIP_2 lsx_rint32_clip_2_f
@@ -84,14 +76,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
 #include "rint-clip.h"
 
 #undef FLOATX
-
-#if defined FE_INVALID && defined FPU_RINT32 && defined __STDC_VERSION__
-  #if __STDC_VERSION__ >= 199901L
-    #pragma STDC FENV_ACCESS OFF
-  #endif
-#endif
-
-
 
 #define INTERLEAVE_TO(T,flag) do { \
   unsigned i; \

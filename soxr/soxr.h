@@ -110,6 +110,8 @@ SOXR soxr_t soxr_create(
 
     Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
     Default quality_spec is per soxr_quality_spec(SOXR_HQ, 0)
+    
+    */
 
 
 
@@ -222,7 +224,6 @@ struct soxr_quality_spec {                                       /* Typically */
   double phase_response;    /* 0=minimum, ... 50=linear, ... 100=maximum 50   */
   double passband_end;      /* 0dB pt. bandwidth to preserve; nyquist=1  0.913*/
   double stopband_begin;    /* Aliasing/imaging control; > passband_end   1   */
-  void * e;                 /* Reserved for internal use.                 0   */
   unsigned long flags;      /* Per the following #defines.                0   */
 };
 
@@ -249,9 +250,7 @@ struct soxr_quality_spec {                                       /* Typically */
  * parameters, with other parameters being given default values.  The default
  * values may then be overridden, directly in the structure, if needed.  */
 
-SOXR soxr_quality_spec_t soxr_quality_spec(
-    unsigned long recipe,       /* Per the #defines immediately below. */
-    unsigned long flags);       /* As soxr_quality_spec_t.flags. */
+SOXR soxr_quality_spec_t soxr_quality_spec();
 
                                   /* The 5 standard qualities found in SoX: */
 #define SOXR_QQ                 0   /* 'Quick' cubic interpolation. */

@@ -105,61 +105,6 @@ extern "C" {
   typedef enum { PFFFT_REAL, PFFFT_COMPLEX } pffft_transform_t;
 
   /*
-    prepare for performing transforms of size N -- the returned
-    PFFFT_Setup structure is read-only so it can safely be shared by
-    multiple concurrent threads.
-  */
-  static
-  PFFFT_Setup *pffft_new_setup(int N, pffft_transform_t transform);
-  static
-  void pffft_destroy_setup(PFFFT_Setup *);
-  /*
-     Perform a Fourier transform , The z-domain data is stored in the
-     most efficient order for transforming it back, or using it for
-     convolution. If you need to have its content sorted in the
-     "usual" way, that is as an array of interleaved complex numbers,
-     either use pffft_transform_ordered , or call pffft_zreorder after
-     the forward fft, and before the backward fft.
-
-     Transforms are not scaled: PFFFT_BACKWARD(PFFFT_FORWARD(x)) = N*x.
-     Typically you will want to scale the backward transform by 1/N.
-
-     The 'work' pointer should point to an area of N (2*N for complex
-     fft) floats, properly aligned. If 'work' is NULL, then stack will
-     be used instead (this is probably the best strategy for small
-     FFTs, say for N < 16384).
-
-     input and output may alias.
-  */
-  static
-  void pffft_transform(PFFFT_Setup *setup, const float *input, float *output, float *work, pffft_direction_t direction);
-
-  /*
-     Similar to pffft_transform, but makes sure that the output is
-     ordered as expected (interleaved complex numbers).  This is
-     similar to calling pffft_transform and then pffft_zreorder.
-
-     input and output may alias.
-  */
-  static
-  void pffft_transform_ordered(PFFFT_Setup *setup, const float *input, float *output, float *work, pffft_direction_t direction);
-
-  /*
-     call pffft_zreorder(.., PFFFT_FORWARD) after pffft_transform(...,
-     PFFFT_FORWARD) if you want to have the frequency components in
-     the correct "canonical" order, as interleaved complex numbers.
-
-     (for real transforms, both 0-frequency and half frequency
-     components, which are real, are assembled in the first entry as
-     F(0)+i*F(n/2+1). Note that the original fftpack did place
-     F(n/2+1) at the end of the arrays).
-
-     input and output should not alias.
-  */
-  static
-  void pffft_zreorder(PFFFT_Setup *setup, const float *input, float *output, pffft_direction_t direction);
-
-  /*
      Perform a multiplication of the frequency components of dft_a and
      dft_b and accumulate them into dft_ab. The arrays should have
      been obtained with pffft_transform(.., PFFFT_FORWARD) and should

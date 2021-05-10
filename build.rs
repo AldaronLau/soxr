@@ -15,9 +15,9 @@ fn main() {
 //.file("soxr/pffft.c")
 //.file("soxr/cr-core.c")
 //.file("soxr/ui")
-        .warnings(false)
-        .extra_warnings(false)
-        .flag("-w")
+        .warnings(true)
+        .extra_warnings(true)
+        .flag("-Wall")
         .define("HAVE_BIGENDIAN", Some("0"))
         .compile("soxr");
 }

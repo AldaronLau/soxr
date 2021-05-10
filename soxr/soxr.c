@@ -64,43 +64,25 @@ struct soxr {
 
 #include "filter.h"
 
-soxr_quality_spec_t soxr_quality_spec(unsigned long recipe, unsigned long flags)
-{
+soxr_quality_spec_t soxr_quality_spec(void) {
   soxr_quality_spec_t spec, * p = &spec;
-  unsigned q = recipe & 0xf;                         /* TODO: move to soxr-lsr.c: */
-  unsigned quality = q > SOXR_LSR2Q+2? SOXR_VHQ : q > SOXR_LSR2Q? SOXR_QQ : q;
+  unsigned quality = 4;
   double rej;
   memset(p, 0, sizeof(*p));
-  if (quality > SOXR_PRECISIONQ) {
-    p->e = "invalid quality type";
-    return spec;
-  }
-  flags |= quality < SOXR_LSR0Q ? RESET_ON_CLEAR : 0;
-  p->phase_response = "\62\31\144"[(recipe & 0x30)>>4];
+
+  unsigned long flags = 1u << 31;
+  p->phase_response = 50.0;
   p->stopband_begin = 1;
-  p->precision =
-    quality == SOXR_QQ      ?  0 :
-    quality <= SOXR_16_BITQ ? 16 :
-    quality <= SOXR_32_BITQ ?  4 + quality * 4 :
-    quality <= SOXR_LSR2Q   ? 55 - quality * 4 : /* TODO: move to soxr-lsr.c */
-    0;
+  p->precision = 20;
   rej = p->precision * linear_to_dB(2.);
   p->flags = flags;
-  if (quality <= SOXR_32_BITQ || quality == SOXR_PRECISIONQ) {
+
     #define LOW_Q_BW0     (1385 / 2048.) /* 0.67625 rounded to be a FP exact. */
     p->passband_end = quality == 1? LOW_Q_BW0 : 1 - .05 / lsx_to_3dB(rej);
     if (quality <= 2)
       p->flags &= ~SOXR_ROLLOFF_NONE, p->flags |= SOXR_ROLLOFF_MEDIUM;
-  }
-  else { /* TODO: move to soxr-lsr.c */
-    static float const bw[] = {.931f, .832f, .663f};
-    p->passband_end = bw[quality - SOXR_LSR0Q];
-    if (quality == SOXR_LSR2Q) {
-      p->flags &= ~SOXR_ROLLOFF_NONE;
-      p->flags |= SOXR_ROLLOFF_LSR2Q | SOXR_PROMOTE_TO_LQ;
-    }
-  }
-  if (recipe & SOXR_STEEP_FILTER)
+  
+  if (4 & SOXR_STEEP_FILTER)
     p->passband_end = 1 - .01 / lsx_to_3dB(rej);
   return spec;
 }
@@ -149,18 +131,6 @@ extern control_block_t
   _soxr_rate64s_cb,
   _soxr_vr32_cb;
 
-static void runtime_flag(char const * env_name,
-    unsigned n_bits, unsigned n_shift, unsigned long * flags)
-{
-  char const * e = getenv(env_name);
-  if (e) {
-    int i = atoi(e);
-    unsigned long mask = (1UL << n_bits) - 1;
-    if (i >= 0 && i <= (int)mask)
-      *flags &= ~(mask << n_shift), *flags |= ((unsigned long)i << n_shift);
-  }
-}
-
 soxr_t soxr_create(
   double input_rate, double output_rate,
   soxr_error_t * error0,
@@ -173,8 +143,7 @@ soxr_t soxr_create(
   soxr_t p = 0;
   soxr_error_t error = 0;
 
-  if (q_spec && q_spec->e)  error = q_spec->e;
-  else if (io_spec && (io_spec->itype | io_spec->otype) >= SOXR_SPLIT * 2)
+  if (io_spec && (io_spec->itype | io_spec->otype) >= SOXR_SPLIT * 2)
     error = "invalid io datatype(s)";
 
   if (!error && !(p = calloc(sizeof(*p), 1))) error = "malloc failed";
@@ -182,7 +151,7 @@ soxr_t soxr_create(
   if (p) {
     control_block_t * control_block;
 
-    p->q_spec = q_spec? *q_spec : soxr_quality_spec(SOXR_HQ, 0);
+    p->q_spec = q_spec? *q_spec : soxr_quality_spec();
 
     if (q_spec) { /* Backwards compatibility with original API: */
       if (p->q_spec.passband_end > 2)
