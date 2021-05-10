@@ -75,12 +75,6 @@ typedef union { /* Fixed point arithmetic */
 #define fraction fix.ms.parts.ls
 #define whole    fix.ms.all
 
-#define CORE_DBL       1
-#define CORE_SIMD_POLY 2
-#define CORE_SIMD_HALF 4
-#define CORE_SIMD_DFT  8
-#define LOG2_SIZEOF_REAL(core_flags) (2 + ((core_flags) & 1))
-
 typedef int core_flags_t;
 
 #include "rdft_t.h"

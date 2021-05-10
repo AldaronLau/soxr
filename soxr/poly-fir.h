@@ -8,47 +8,24 @@
   #error COEF_INTERP
 #endif
 
-#if SIMD_AVX || SIMD_SSE || SIMD_NEON
-  #define N (FIR_LENGTH>>2)
+#define N FIR_LENGTH
 
-  #if COEF_INTERP == 1
-    #define _ sum=vMac(vMac(b,X,a),vLdu(in+j*4),sum), ++j;
-  #elif COEF_INTERP == 2
-    #define _ sum=vMac(vMac(vMac(c,X,b),X,a),vLdu(in+j*4),sum), ++j;
-  #else
-    #define _ sum=vMac(vMac(vMac(vMac(d,X,c),X,b),X,a),vLdu(in+j*4),sum), ++j;
-  #endif
-
-  #define a coefs[(COEF_INTERP+1)*(N*phase+j)+(COEF_INTERP-0)]
-  #define b coefs[(COEF_INTERP+1)*(N*phase+j)+(COEF_INTERP-1)]
-  #define c coefs[(COEF_INTERP+1)*(N*phase+j)+(COEF_INTERP-2)]
-  #define d coefs[(COEF_INTERP+1)*(N*phase+j)+(COEF_INTERP-3)]
-
-  #define BEGINNING v4_t X = vLds(x), sum = vZero(); \
-      v4_t const * const __restrict coefs = (v4_t *)COEFS
-  #define END vStorSum(output+i, sum)
-  #define cc(n) case n: core(n); break
-  #define CORE(n) switch (n) {cc(2); cc(3); cc(4); cc(5); cc(6); default: core(n);}
-#else
-  #define N FIR_LENGTH
-
-  #if COEF_INTERP == 1
+#if COEF_INTERP == 1
     #define _ sum += (b*x + a)*in[j], ++j;
-  #elif COEF_INTERP == 2
+#elif COEF_INTERP == 2
     #define _ sum += ((c*x + b)*x + a)*in[j], ++j;
-  #else
+#else
     #define _ sum += (((d*x + c)*x + b)*x + a)*in[j], ++j;
-  #endif
-
-  #define a (coef(COEFS, COEF_INTERP, N, phase, 0,j))
-  #define b (coef(COEFS, COEF_INTERP, N, phase, 1,j))
-  #define c (coef(COEFS, COEF_INTERP, N, phase, 2,j))
-  #define d (coef(COEFS, COEF_INTERP, N, phase, 3,j))
-
-  #define BEGINNING float sum = 0
-  #define END output[i] = sum
-  #define CORE(n) core(n)
 #endif
+
+#define a (coef(COEFS, COEF_INTERP, N, phase, 0,j))
+#define b (coef(COEFS, COEF_INTERP, N, phase, 1,j))
+#define c (coef(COEFS, COEF_INTERP, N, phase, 2,j))
+#define d (coef(COEFS, COEF_INTERP, N, phase, 3,j))
+
+#define BEGINNING float sum = 0
+#define END output[i] = sum
+#define CORE(n) core(n)
 
 
 

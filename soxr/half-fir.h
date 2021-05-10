@@ -6,34 +6,11 @@
 
 #define COEFS ((float const *)p->coefs)
 
-#if SIMD_SSE
-  #define BEGINNING v4_t sum, q1, q2, t
-  #define ____ \
-    q1 = _mm_shuffle_ps(t=vLdu(input+2*j),vLdu(input+2*j+4),_MM_SHUFFLE(3,1,3,1)); \
-    q2 = _mm_shuffle_ps(vLdu(input-2*j-4),vLdu(input-2*j-8),_MM_SHUFFLE(1,3,1,3)); \
-    sum = vAdd(j? sum : vMul(vSet1(.5), t), vMul(vAdd(q1, q2), vLd(COEFS+j))); \
-    j += 4;
-  #define __ \
-    q1 = _mm_shuffle_ps(vLdu(input+2*j), vLdu(input-2*j-4), _MM_SHUFFLE(1,3,3,1)); \
-    q2 = _mm_loadl_pi(q2, (__m64*)(COEFS+j)), q2 = _mm_movelh_ps(q2, q2); \
-    sum = vAdd(sum, vMul(q1, q2)); \
-    j += 2;
-  #define _ \
-    q1 = _mm_add_ss(_mm_load_ss(input+2*j+1), _mm_load_ss(input-2*j-1)); \
-    sum = _mm_add_ss(sum, _mm_mul_ss(q1, _mm_load_ss(COEFS+j))); \
-    ++j;
-  #define END vStorSum(output+i, sum)
-/* #elif SIMD_AVX; No good solution found. */
-/* #elif SIMD_NEON; No need: gcc -O3 does a good job by itself. */
-#else
-  #define BEGINNING float sum = input[0] * .5f
-  #define ____ __ __
-  #define __ _ _
-  #define _ sum += (input[-(2*j +1)] + input[(2*j +1)]) * COEFS[j], ++j;
-  #define END output[i] = sum
-#endif
-
-
+#define BEGINNING float sum = input[0] * .5f
+#define ____ __ __
+#define __ _ _
+#define _ sum += (input[-(2*j +1)] + input[(2*j +1)]) * COEFS[j], ++j;
+#define END output[i] = sum
 
 static void FUNCTION_H(stage_t * p, fifo_t * output_fifo)
 {

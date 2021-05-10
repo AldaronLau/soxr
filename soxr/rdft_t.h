@@ -18,7 +18,3 @@ typedef void (* fn_t)(void);
 #define rdft_calloc           (*(void * (*)(size_t, size_t))RDFT_CB[12])
 #define rdft_free             (*(void (*)(void *))RDFT_CB[13])
 #define rdft_flags            (*(int (*)(void))RDFT_CB[14])
-
-/* Flag templates: */
-#define RDFT_IS_SIMD       1
-#define RDFT_NEEDS_SCRATCH 2

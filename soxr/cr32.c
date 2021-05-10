@@ -73,12 +73,6 @@ static half_fir_info_t const half_firs[] = {
   { 9, half_fir_coefs_9 , h9 , 0  , 152.32f},
 };
 
-#define SIMD_AVX 0
-
-#define SIMD_NEON 0
-
-
-
 #define COEFS (float * __restrict)p->shared->poly_fir_coefs
 #define VAR_LENGTH p->n
 #define VAR_CONVOLVE(n) while (j < (n)) _

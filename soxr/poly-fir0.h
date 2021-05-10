@@ -4,22 +4,13 @@
 /* Resample using a non-interpolated poly-phase FIR with length LEN. */
 /* Input must be followed by FIR_LENGTH-1 samples. */
 
-#if SIMD_AVX || SIMD_SSE || SIMD_NEON
-  #define N (FIR_LENGTH>>2)
-  #define BEGINNING v4_t sum = vZero(); \
-      v4_t const * const __restrict coefs = (v4_t *)COEFS + N * rem;
-  #define _ sum = vMac(vLdu(at+j*4), coefs[j], sum), ++j;
-  #define END vStorSum(output+i, sum)
-  #define cc(n) case n: core(n); break
-  #define CORE(n) switch (n) {cc(2); cc(3); cc(4); cc(5); cc(6); default: core(n);}
-#else
-  #define N FIR_LENGTH
-  #define BEGINNING float sum = 0; \
-      float const * const __restrict coefs = (float *)COEFS + N * rem;
-  #define _ sum += coefs[j]*at[j], ++j;
-  #define END output[i] = sum
-  #define CORE(n) core(n)
-#endif
+
+#define N FIR_LENGTH
+#define BEGINNING float sum = 0; \
+  float const * const __restrict coefs = (float *)COEFS + N * rem;
+#define _ sum += coefs[j]*at[j], ++j;
+#define END output[i] = sum
+#define CORE(n) core(n)
 
 #define core(n) \
   for (i = 0; at < num_in * p->L; ++i, at += step) { \

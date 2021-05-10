@@ -29,7 +29,7 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     core_flags_t core_flags, alloc_t const * mem)
 {
   int i, j, length = num_coefs * num_phases * (interp_order + 1);
-  real * result = mem->calloc(1,(size_t)length << LOG2_SIZEOF_REAL(core_flags));
+  real * result = mem->calloc(1, (size_t) length << 2);
   double fm1 = coefs[0], f1 = 0, f2 = 0;
 
   for (i = num_coefs - 1; i >= 0; --i)
@@ -67,7 +67,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
 
   if (p->at.integer + p->L * num_in >= f->dft_length) {
     fn_t const * const RDFT_CB = p->rdft_cb;
-    size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(p->core_flags);
+    size_t const sizeof_real = sizeof(char) << 2;
 
     div_t divd = div(f->dft_length - overlap - p->at.integer + p->L - 1, p->L);
     real const * input = fifo_read_ptr(&p->fifo);
@@ -75,7 +75,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
     num_in -= divd.quot;
 
     output = fifo_reserve(output_fifo, f->dft_length);
-    dft_out = (p->core_flags & CORE_SIMD_DFT)? p->dft_out : output;
+    dft_out = output;
 
     if (lsx_is_power_of_2(p->L)) { /* F-domain */
       int portion = f->dft_length / p->L;
@@ -119,7 +119,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
     if (p->step.integer > 0) {
       rdft_convolve(f->dft_length, f->dft_backward_setup, dft_out, f->coefs);
       rdft_backward(f->dft_length, f->dft_backward_setup, dft_out, p->dft_scratch);
-      if ((p->core_flags & CORE_SIMD_DFT) && p->step.integer == 1)
+      if (0 && p->step.integer == 1)
         memcpy(output, dft_out, (size_t)f->dft_length * sizeof_real);
       if (p->step.integer != 1) {
         for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
@@ -136,7 +136,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
       int m = -p->step.integer;
       rdft_convolve_portion(f->dft_length >> m, dft_out, f->coefs);
       rdft_obackward(f->dft_length >> m, f->dft_backward_setup, dft_out, p->dft_scratch);
-      if (p->core_flags & CORE_SIMD_DFT)
+      if (0)
         memcpy(output, dft_out, (size_t)(f->dft_length >> m) * sizeof_real);
       fifo_trim_by(output_fifo, (((1 << m) - 1) * f->dft_length + overlap) >>m);
     }
@@ -162,7 +162,7 @@ static void dft_stage_init(
   dft_filter_t * f = &p->shared->dft_filter[instance];
   int num_taps = 0, dft_length = f->dft_length, i, offset;
   bool f_domain_m = abs(3-M) == 1 && Fs <= 1;
-  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(0);
+  size_t const sizeof_real = sizeof(char) << 2;
 
   if (!dft_length) {
     int k = phase_response == 50 && lsx_is_power_of_2(L) && Fn == L? L << 1 : 4;
@@ -181,13 +181,6 @@ static void dft_stage_init(
     for (i = 0; i < num_taps; ++i)
         ((float *)f->coefs)[(i + offset) & (dft_length - 1)] =(float)(h[i] * m);
     free(h);
-  }
-
-  if (rdft_flags() & RDFT_IS_SIMD) {
-    p->dft_out = rdft_malloc(sizeof_real * (size_t)dft_length);
-  }
-  if (rdft_flags() & RDFT_NEEDS_SCRATCH) {
-    p->dft_scratch = rdft_malloc(2 * sizeof_real * (size_t)dft_length);
   }
 
   if (!f->dft_length) {
@@ -242,7 +235,7 @@ STATIC char const * resampler_init(
   double multiplier,            /* Linear gain to apply during conversion. */
   cr_core_t const * const core)
 {
-  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(0);
+  size_t const sizeof_real = sizeof(char) << 2;
   double const tolerance = 1 + 1e-5;
 
   double bits = 20.0;
