@@ -86,17 +86,8 @@ soxr_t soxr_create(
     double      input_rate,      /* Input sample-rate. */
     double      output_rate,     /* Output sample-rate. */
         /* All following arguments are optional (may be set to NULL). */
-    soxr_error_t *,              /* To report any error during creation. */
-    soxr_io_spec_t const *      /* To specify non-default I/O formats. */
-    );
-
-    /*
-
-    Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
-    
-    */
-
-
+    soxr_error_t *              /* To report any error during creation. */
+);
 
 /* If not using an app-supplied input function, after creating a stream
  * resampler, repeatedly call: */
@@ -172,30 +163,13 @@ soxr_error_t soxr_set_io_ratio(soxr_t, double io_ratio, size_t slew_len);
 
 /* -------------------------- API type definitions -------------------------- */
 
-typedef enum {          /* Datatypes supported for I/O to/from the resampler: */
-  /* Internal; do not use: */
-  SOXR_FLOAT32, SOXR_FLOAT64, SOXR_INT32, SOXR_INT16, SOXR_SPLIT = 4,
 
-  /* Use for interleaved channels: */
-  SOXR_FLOAT32_I = SOXR_FLOAT32, SOXR_FLOAT64_I, SOXR_INT32_I, SOXR_INT16_I,
-
-  /* Use for split channels: */
-  SOXR_FLOAT32_S = SOXR_SPLIT  , SOXR_FLOAT64_S, SOXR_INT32_S, SOXR_INT16_S
-
-} soxr_datatype_t;
-
+// FIXME
 #define soxr_datatype_size(x)  /* Returns `sizeof' a soxr_datatype_t sample. */\
   ((unsigned char *)"\4\10\4\2")[(x)&3]
 
 
 
-struct soxr_io_spec {                                            /* Typically */
-  soxr_datatype_t itype;     /* Input datatype.                SOXR_FLOAT32_I */
-  soxr_datatype_t otype;     /* Output datatype.               SOXR_FLOAT32_I */
-  double scale;              /* Linear gain to apply during resampling.  1    */
-  void * e;                  /* Reserved for internal use                0    */
-  unsigned long flags;       /* Per the following #defines.              0    */
-};
 
 #define SOXR_TPDF              0     /* Applicable only if otype is INT16. */
 #define SOXR_NO_DITHER         8u    /* Disable the above. */
@@ -246,9 +220,7 @@ struct soxr_io_spec {                                            /* Typically */
 
 #define SOXR_STEEP_FILTER       0x40
 
-soxr_io_spec_t soxr_io_spec(
-    soxr_datatype_t itype,
-    soxr_datatype_t otype);
+soxr_io_spec_t soxr_io_spec(void);
 
 /* --------------------------- Advanced use only ---------------------------- */
 

@@ -22,17 +22,11 @@
 } while (0)
 
 void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
-    soxr_datatype_t data_type, void const * * src0, size_t n, unsigned ch)
+    void const * * src0, size_t n, unsigned ch)
 {
 #undef DEINTERLEAVE_TO
 #define DEINTERLEAVE_TO float
-  switch (data_type & 3) {
-    case SOXR_FLOAT32: DEINTERLEAVE_FROM(float, 1); break;
-    case SOXR_FLOAT64: DEINTERLEAVE_FROM(double, 0); break;
-    case SOXR_INT32:   DEINTERLEAVE_FROM(int32_t, 0); break;
-    case SOXR_INT16:   DEINTERLEAVE_FROM(int16_t, 0); break;
-    default: break;
-  }
+  DEINTERLEAVE_FROM(float, 1);
 }
 
 #define FLOATX float
@@ -87,27 +81,9 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
 
   #include<stdio.h>
 
-size_t /* clips */ _soxr_interleave_f(soxr_datatype_t data_type, void * * dest0,
+size_t /* clips */ _soxr_interleave_f(void * * dest0,
   float const * const * src, size_t n, unsigned ch, unsigned long * seed)
 {
-  // printf("%d\n", data_type & 3); always 0
-  switch (data_type & 3) {
-    case SOXR_FLOAT32: INTERLEAVE_TO(float, 1);
-    case SOXR_FLOAT64: INTERLEAVE_TO(double, 0);
-
-    case SOXR_INT32: if (ch == 1)
-        return lsx_rint32_clip_f(dest0, src[0], n);
-      return lsx_rint32_clip_2_f(dest0, src, ch, n);
-
-    case SOXR_INT16: if (seed) {
-      if (ch == 1)
-        return lsx_rint16_clip_dither_f(dest0, src[0], n, seed);
-      return lsx_rint16_clip_2_dither_f(dest0, src, ch, n, seed);
-    }
-    if (ch == 1)
-        return lsx_rint16_clip_f(dest0, src[0], n);
-      return lsx_rint16_clip_2_f(dest0, src, ch, n);
-    default: break;
-  }
-  return 0;
+    INTERLEAVE_TO(float, 1);
+    return 0;
 }

@@ -36,14 +36,13 @@ typedef fn_t control_block_t[10];
 typedef void * resampler_t; /* For one channel. */
 typedef void * resampler_shared_t; /* Between channels. */
 typedef void (* deinterleave_t)(sample_t * * dest,
-    soxr_datatype_t data_type, void const * * src0, size_t n, unsigned ch);
-typedef size_t (* interleave_t)(soxr_datatype_t data_type, void * * dest,
+    void const * * src0, size_t n, unsigned ch);
+typedef size_t (* interleave_t)(void * * dest,
     sample_t const * const * src, size_t, unsigned, unsigned long *);
 
 struct soxr {
   double io_ratio;
   soxr_error_t error;
-  soxr_io_spec_t io_spec;
 
   void * input_fn_state;
   soxr_input_fn_t input_fn;
@@ -57,7 +56,6 @@ struct soxr {
 
   void * * channel_ptrs;
   size_t clips;
-  unsigned long seed;
   int flushing;
 };
 
@@ -78,22 +76,6 @@ soxr_error_t soxr_error(soxr_t p)
   return p->error;
 }
 
-soxr_io_spec_t soxr_io_spec(
-  soxr_datatype_t itype,
-  soxr_datatype_t otype)
-{
-  soxr_io_spec_t spec, * p = &spec;
-  memset(p, 0, sizeof(*p));
-  if ((itype | otype) >= SOXR_SPLIT * 2)
-    p->e = "invalid io datatype(s)";
-  else {
-    p->itype = itype;
-    p->otype = otype;
-    p->scale = 1;
-  }
-  return spec;
-}
-
 extern control_block_t
   _soxr_rate32_cb,
   _soxr_rate32s_cb,
@@ -103,17 +85,12 @@ extern control_block_t
 
 soxr_t soxr_create(
   double input_rate, double output_rate,
-  soxr_error_t * error0,
-  soxr_io_spec_t const * io_spec)
+  soxr_error_t * error0)
 {
   double io_ratio = output_rate!=0? input_rate!=0?
     input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
-  static const float datatype_full_scale[] = {1, 1, 65536.*32768, 32768};
   soxr_t p = 0;
   soxr_error_t error = 0;
-
-  if (io_spec && (io_spec->itype | io_spec->otype) >= SOXR_SPLIT * 2)
-    error = "invalid io datatype(s)";
 
   if (!error && !(p = calloc(sizeof(*p), 1))) error = "malloc failed";
 
@@ -121,15 +98,6 @@ soxr_t soxr_create(
     control_block_t * control_block;
 
     p->io_ratio = io_ratio;
-    if (io_spec)
-      p->io_spec = *io_spec;
-    else
-      p->io_spec.scale = 1;
-
-    p->io_spec.scale *= datatype_full_scale[p->io_spec.otype & 3] /
-                        datatype_full_scale[p->io_spec.itype & 3];
-
-    p->seed = (unsigned long)time(0) ^ (unsigned long)(size_t)p;
 
     p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
     p->interleave = (interleave_t)_soxr_interleave_f;
@@ -215,7 +183,7 @@ static soxr_error_t initialise(soxr_t p)
         p->resamplers[i],
         p->shared,
         p->io_ratio,
-        p->io_spec.scale);
+        1.0);
     if (error)
       return fatal_error(p, error);
   }
@@ -259,7 +227,6 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     soxr_delete0(p);
     memset(p, 0, sizeof(*p));
     p->input_fn = tmp.input_fn;
-    p->io_spec = tmp.io_spec;
     p->input_fn_state = tmp.input_fn_state;
     memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
     p->deinterleave = tmp.deinterleave;
@@ -274,14 +241,14 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
 static void soxr_input_1ch(soxr_t p, unsigned i, soxr_cbuf_t src, size_t len)
 {
   sample_t * dest = resampler_input(p->resamplers[i], NULL, len);
-  (*p->deinterleave)(&dest, p->io_spec.itype, &src, len, 1);
+  (*p->deinterleave)(&dest, &src, len, 1);
 }
 
 
 
 static size_t soxr_input(soxr_t p, void const * in, size_t len)
 {
-  bool separated = !!(p->io_spec.itype & SOXR_SPLIT);
+  bool separated = false;
   unsigned i;
   if (!p || p->error) return 0;
   if (!in && len) {p->error = "null input buffer pointer"; return 0;}
@@ -296,7 +263,7 @@ static size_t soxr_input(soxr_t p, void const * in, size_t len)
     for (i = 0; i < 1; ++i)
       p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
     (*p->deinterleave)(
-        (sample_t **)p->channel_ptrs, p->io_spec.itype, &in, len, 1);
+        (sample_t **)p->channel_ptrs, &in, len, 1);
   }
   return len;
 }
@@ -311,8 +278,8 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, soxr_buf_t dest, size_t len,
   resampler_process(p->resamplers[i], len);
   src = resampler_output(p->resamplers[i], NULL, &len);
   if (separated)
-    p->clips += (p->interleave)(p->io_spec.otype, &dest, &src,
-      len, 1, (p->io_spec.flags & SOXR_NO_DITHER)? 0 : &p->seed);
+    p->clips += (p->interleave)(&dest, &src,
+      len, 1, 0);
   else p->channel_ptrs[i] = (void /* const */ *)src;
   return len;
 }
@@ -323,14 +290,14 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
 {
   unsigned u;
   size_t done = 0;
-  bool separated = !!(p->io_spec.otype & SOXR_SPLIT);
+  bool separated = false;
 
   for (u = 0; u < 1; ++u)
     done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len, separated);
 
   if (!separated)
-    p->clips += (p->interleave)(p->io_spec.otype, &out, (sample_t const * const *)p->channel_ptrs,
-        done, 1, (p->io_spec.flags & SOXR_NO_DITHER)? 0 : &p->seed);
+    p->clips += (p->interleave)(&out, (sample_t const * const *)p->channel_ptrs,
+        done, 1, 0);
   return done;
 }
 
@@ -352,7 +319,7 @@ size_t soxr_output(soxr_t p, void * out, size_t len0)
     if (odone0 == len0 || !p->input_fn || p->flushing)
       break;
 
-    osize = soxr_datatype_size(p->io_spec.otype) * 1;
+    osize = soxr_datatype_size(0) * 1;
     out = (char *)out + osize * odone;
     olen -= odone;
     idone = p->input_fn(p->input_fn_state, &in, ilen);
@@ -377,14 +344,13 @@ soxr_error_t soxr_process(soxr_t p,
     void       * out, size_t olen , size_t * odone0)
 {
   size_t ilen, idone, odone = 0;
-  unsigned u;
   bool flush_requested = false;
 
   if (!p) return "null pointer";
 
-  if (!in)
+  if (!in) {
     flush_requested = true, ilen = ilen0 = 0;
-  else {
+  } else {
     if ((ptrdiff_t)ilen0 < 0)
       flush_requested = true, ilen0 = ~ilen0;
     if (idone0 && (1 || flush_requested))
@@ -395,15 +361,6 @@ soxr_error_t soxr_process(soxr_t p,
   p->flushing |= ilen == ilen0 && flush_requested;
 
   if (!out && !in) {
-    idone = ilen;
-  } else if (p->io_spec.itype & p->io_spec.otype & SOXR_SPLIT) { /* Both i & o */
-
-    for (u = 0; u < 1; ++u) {
-      if (in) {
-        soxr_input_1ch(p, u, ((soxr_cbufs_t)in)[u], ilen);
-      }
-      odone = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], olen, true);
-    }
     idone = ilen;
   } else {
     idone = ilen? soxr_input (p, in , ilen) : 0;

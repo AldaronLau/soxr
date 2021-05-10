@@ -10,7 +10,6 @@ extern "C" {
         output_rate: f64,     /* Output sample-rate. */
         /* All following arguments are optional (may be set to NULL). */
         error: *mut *const c_char,   /* To report any error during creation. */
-        spec: *const c_void,      /* To specify non-default I/O formats. */
     ) -> *mut c_void;               
 /*
         Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
@@ -45,7 +44,6 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
             hz_in,
             hz_out,
             std::ptr::null_mut(),
-            std::ptr::null(),
         )
     };
 
