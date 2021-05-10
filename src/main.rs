@@ -1,6 +1,7 @@
 use std::os::raw::{
     c_void, c_char, c_uint
 };
+use std::thread;
 
 extern "C" {
     /* Create a stream resampler: */
@@ -38,15 +39,15 @@ extern "C" {
         may be indicated by seting `in' to NULL.                                  */
 }
 
-fn resample_channel(input: Vec<f32>) -> Vec<f32> {
-    let out_size = input.len() as f64 * (44_100.0 / 48_000.0);
-    let mut output = vec![0.0; out_size as usize];
+fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
+    let out_size = input.len() as f64 * (hz_out / hz_in);
+    let mut output = vec![0.0; out_size.round() as usize];
 
     // Sample to 44100 from 48000
     let resampler = unsafe {
         soxr_create(
-            48_000.0,
-            44_100.0,
+            hz_in,
+            hz_out,
             1, // Always going to be one.
             std::ptr::null_mut(),
             std::ptr::null(),
@@ -91,9 +92,9 @@ fn resample_channel(input: Vec<f32>) -> Vec<f32> {
     output
 }
 
-fn main() {
-    // Load 48_000 HZ song S16 Interleaved Stereo.
-    let song = std::fs::read("AUSTRA - Reconcile.raw").expect("No file!");
+fn resample_audio(filename: &str, hz_in: f64, hz_out: f64) -> Vec<u8> {
+    // Load song S16 Interleaved Stereo.
+    let song = std::fs::read(filename).expect("No file!");
 
     // First, de-interleave and convert to f32 (left and right channels).
     println!("Preparing…");
@@ -115,8 +116,8 @@ fn main() {
     // Process on separate threads.
     println!("Resampling…");
     
-    let left = std::thread::spawn(|| resample_channel(left));
-    let right = std::thread::spawn(|| resample_channel(right));
+    let left = thread::spawn(move || resample_channel(left, hz_in, hz_out));
+    let right = thread::spawn(move || resample_channel(right, hz_in, hz_out));
 
     // Get the resampled left and right channels individually.
     let left: Vec<f32> = left.join().unwrap();
@@ -134,14 +135,26 @@ fn main() {
         out.extend(&l.to_le_bytes());
         out.extend(&r.to_le_bytes());
     }
+    
+    out
+}
+
+fn main() {
+    // Downsample
+    let austra = resample_audio("AUSTRA - Reconcile.raw", 48_000.0, 44_100.0);
+    // Upsample
+    let shaed = resample_audio("SHAED - ISOU.raw", 44_100.0, 48_000.0);
 
     // Reading test....
     let song = std::fs::read("test.raw").expect("No test!");
+    assert_eq!(song, austra);
 
-    assert_eq!(song, out);
+    // Reading check...
+    let song = std::fs::read("check.raw").expect("No test!");
+    assert_eq!(song, shaed);
 
 /*
     println!("Writing out...");
 
-    std::fs::write("out.raw", out).expect("Could not write!");*/
+    std::fs::write("check.raw", shaed).expect("Could not write!");*/
 }
