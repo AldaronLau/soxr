@@ -515,11 +515,6 @@ STATIC void resampler_close(rate_t * p)
   }
 }
 
-STATIC double resampler_delay(rate_t * p)
-{
-  return (double)p->samples_in / p->io_ratio - (double)p->samples_out;
-}
-
 STATIC void resampler_sizes(size_t * shared, size_t * channel)
 {
   *shared = sizeof(rate_shared_t);

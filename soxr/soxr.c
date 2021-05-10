@@ -17,8 +17,8 @@ void resampler_process(struct rate * p, size_t olen);
 float const * resampler_output(struct rate * p, float * samples, size_t * n0);
 void resampler_flush(struct rate * p);
 void resampler_close(struct rate * p);
-double resampler_delay(struct rate * p);
 void resampler_sizes(size_t * shared, size_t * channel);
+char const * resampler_create(void * channel, void * shared, double io_ratio);
 
 static void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
     printf("deinterlieva\n");
@@ -45,9 +45,6 @@ static void _soxr_interleave_f(void * * dest0,
 }
 
 typedef void (* fn_t)(void);
-typedef fn_t control_block_t[9];
-
-#define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, double scale))p->control_block[7])
 
 typedef void * resampler_t; /* For one channel. */
 typedef void * resampler_shared_t; /* Between channels. */
@@ -60,7 +57,6 @@ struct soxr {
 
   resampler_shared_t shared;
   resampler_t resampler;
-  control_block_t control_block;
 
   void * * channel_ptrs;
   int flushing;
@@ -68,35 +64,8 @@ struct soxr {
 
 #include "filter.h"
 
-soxr_error_t soxr_error(soxr_t p)
-{
-  return p->error;
-}
-
-extern control_block_t _soxr_rate32_cb;
-
-static void soxr_delete0(soxr_t p)
-{
-    if (p->resampler)
-        resampler_close(p->resampler);
-    free(p->resampler);
-
-    free(p->channel_ptrs);
-    free(p->shared);
-
-    memset(p, 0, sizeof(*p));
-}
-
 soxr_t soxr_create(double io_ratio) {
     soxr_t p = calloc(sizeof(*p), 1);
-
-    control_block_t * control_block;
-
-    p->io_ratio = io_ratio;
-
-    control_block = &_soxr_rate32_cb;
-
-    memcpy(&p->control_block, control_block, sizeof(p->control_block));
 
     p->io_ratio = io_ratio;
 
@@ -110,22 +79,10 @@ soxr_t soxr_create(double io_ratio) {
     resampler_create(
         p->resampler,
         p->shared,
-        p->io_ratio,
-        1.0
+        p->io_ratio
     );
 
     return p;
-}
-
-double soxr_delay(soxr_t p)
-{
-  return (p && !p->error)? resampler_delay(p->resampler) : 0;
-}
-
-void soxr_delete(soxr_t p)
-{
-  if (p)
-    soxr_delete0(p), free(p);
 }
 
 static size_t soxr_input(soxr_t p, void const * in, size_t len)

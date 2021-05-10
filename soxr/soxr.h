@@ -66,11 +66,6 @@ size_t /*odone*/ soxr_output(/* Resample and output a block of data.*/
 
 /* Common stream resampler operations: */
 
-soxr_error_t soxr_error(soxr_t);   /* Query error status. */
-double     soxr_delay(soxr_t);  /* Query current delay in output samples.*/
-
-void         soxr_delete(soxr_t);  /* Free resources. */
-
 #undef SOXR
 
 #endif

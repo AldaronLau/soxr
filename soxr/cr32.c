@@ -145,19 +145,6 @@ static cr_core_t const cr_core = {
   poly_firs, _soxr_rdft32_cb
 };
 
-char const * rate_create(void * channel, void * shared, double io_ratio) {
+char const * resampler_create(void * channel, void * shared, double io_ratio) {
   return resampler_init(channel, shared, io_ratio, &cr_core);
 }
-
-fn_t _soxr_rate32_cb[] = {
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  (fn_t)rate_create,
-  (fn_t)0,
-};
-
