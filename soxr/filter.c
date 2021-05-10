@@ -76,9 +76,7 @@ double _soxr_kaiser_beta(double att, double tr_bw)
   return 0;
 }
 
-double * _soxr_make_lpf(
-    int num_taps, double Fc, double beta, double rho, double scale)
-{
+double * _soxr_make_lpf(int num_taps, double Fc, double beta, double rho, double scale) {
   int i, m = num_taps - 1;
   double * h = malloc((size_t)num_taps * sizeof(*h));
   double mult = scale / _soxr_bessel_I_0(beta), mult1 = 1 / (.5 * m + rho);
@@ -225,14 +223,13 @@ void _soxr_fir_to_phase(double * * h, int * len, int * post_len, double phase)
   free(pi_wraps), free(work);
 }
 
-#define F_x(F,expr) static double F(double x) {return expr;}
-F_x(sinePhi, ((2.0517e-07*x-1.1303e-04)*x+.023154)*x+.55924 )
-F_x(sinePsi, ((9.0667e-08*x-5.6114e-05)*x+.013658)*x+1.0977 )
-F_x(sinePow, log(.5)/log(sin(x*.5)) )
-#define dB_to_linear(x) exp((x) * (M_LN10 * 0.05))
+static double sinePhi(double x) {return ((2.0517e-07*x-1.1303e-04)*x+.023154)*x+.55924;}
 
-double _soxr_f_resp(double t, double a)
-{
+static double sinePsi(double x) {return ((9.0667e-08*x-5.6114e-05)*x+.013658)*x+1.0977;}
+
+static double sinePow(double x) {return log(0.5) / log(sin(x * 0.5));}
+
+double _soxr_f_resp(double t, double a) {
   double x;
   if (t > (a <= 160? .8 : .82)) {
     double a1 = a+15;
@@ -241,17 +238,18 @@ double _soxr_f_resp(double t, double a)
     double c = 1+asin(pow(1-a/a1,1/p))/w;
     return a1*(pow(sin((c-t)*w),p)-1);
   }
-  if (t > .5)
+  if (t > .5) {
     x = sinePsi(a), x = pow(sin((1-t) * x), sinePow(x));
-  else
+  } else {
     x = sinePhi(a), x = 1 - pow(sin(t * x), sinePow(x));
+  }
   return linear_to_dB(x);
 }
 
 double _soxr_inv_f_resp(double drop, double a)
 {
   double x = sinePhi(a), s;
-  drop = dB_to_linear(drop);
+  drop = exp(drop * (M_LN10 * 0.05));
   s = drop > .5 ? 1 - drop : drop;
   x = asin(pow(s, 1/sinePow(x))) / x;
   return drop > .5? x : 1 -x;
