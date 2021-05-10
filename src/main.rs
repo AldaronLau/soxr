@@ -6,8 +6,7 @@ use std::thread;
 extern "C" {
     /* Create a stream resampler: */
     fn soxr_create(
-        input_rate: f64,      /* Input sample-rate. */
-        output_rate: f64,     /* Output sample-rate. */
+        rate_io: f64,      /* Input ÷ Output sample-rate. */
     ) -> *mut c_void;               
 
     /* If not using an app-supplied input function, after creating a stream
@@ -34,12 +33,7 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
     let mut output = vec![0.0; out_size.round() as usize];
 
     // Sample to 44100 from 48000
-    let resampler = unsafe {
-        soxr_create(
-            hz_in,
-            hz_out,
-        )
-    };
+    let resampler = unsafe { soxr_create(hz_in / hz_out) };
 
     let mut ilen = 0;
     let mut olen = 0;

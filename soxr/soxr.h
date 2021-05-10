@@ -35,8 +35,7 @@ typedef void       * soxr_buf_t;  /* 1 buffer of channel-interleaved samples. */
 /* Create a stream resampler: */
 
 soxr_t soxr_create(
-    double      input_rate,      /* Input sample-rate. */
-    double      output_rate     /* Output sample-rate. */
+    double      io_rate      /* Input / Output sample-rate. */
 );
 
 /* If not using an app-supplied input function, after creating a stream

@@ -87,9 +87,7 @@ static void soxr_delete0(soxr_t p)
     memset(p, 0, sizeof(*p));
 }
 
-soxr_t soxr_create(double input_rate, double output_rate) {
-    double io_ratio = input_rate / output_rate;
-
+soxr_t soxr_create(double io_ratio) {
     soxr_t p = calloc(sizeof(*p), 1);
 
     control_block_t * control_block;
