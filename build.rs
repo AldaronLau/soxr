@@ -15,15 +15,15 @@ fn main() {
 //.file("soxr/cr-core.c")
 //.file("soxr/ui")
 
-/*
+
         .warnings(true)
         .extra_warnings(true)
-        .flag("-Wall")*/
-
+        .flag("-Wall")
+/*
         .warnings(false)
         .extra_warnings(false)
         .flag("-w")
-
+*/
         .define("HAVE_BIGENDIAN", Some("0"))
         .compile("soxr");
 }

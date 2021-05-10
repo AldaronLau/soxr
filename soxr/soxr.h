@@ -74,8 +74,6 @@ typedef void       * soxr_out_t;     /* Either a soxr_buf_t or soxr_bufs_t,
 
 /* --------------------------- API main functions --------------------------- */
 
-char const * soxr_version(void);  /* Query library version: "libsoxr-x.y.z" */
-
 #define soxr_strerror(e)               /* Soxr counterpart to strerror. */     \
     ((e)?(e):"no error")
 
@@ -107,32 +105,6 @@ soxr_error_t soxr_process(
     zero.  End-of-input (i.e. no data is available nor shall be available)
     may be indicated by seting `in' to NULL.                                  */
 
-
-
-/* If using an app-supplied input function, it must look and behave like this:*/
-
-typedef size_t /* data_len */
-  (* soxr_input_fn_t)(         /* Supply data to be resampled. */
-    void * input_fn_state,     /* As given to soxr_set_input_fn (below). */
-    soxr_in_t * data,          /* Returned data; see below. N.B. ptr to ptr(s)*/
-    size_t requested_len);     /* Samples per channel, >= returned data_len.
-
-  data_len  *data     Indicates    Meaning
-   ------- -------   ------------  -------------------------
-     !=0     !=0       Success     *data contains data to be
-                                   input to the resampler.
-      0    !=0 (or   End-of-input  No data is available nor
-           not set)                shall be available.
-      0       0        Failure     An error occurred whilst trying to
-                                   source data to be input to the resampler.  */
-
-/* and be registered with a previously created stream resampler using: */
-
-soxr_error_t soxr_set_input_fn(/* Set (or reset) an input function.*/
-    soxr_t resampler,            /* As returned by soxr_create. */
-    soxr_input_fn_t,             /* Function to supply data to be resampled.*/
-    void * input_fn_state,       /* If needed by the input function. */
-    size_t max_ilen);            /* Maximum value for input fn. requested_len.*/
 
 /* then repeatedly call: */
 

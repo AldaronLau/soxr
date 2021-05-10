@@ -4,16 +4,15 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "soxr.h"
 #include "internal.h"
 
-void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
+static void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
     printf("deinterlieva\n");
 
-    unsigned i;
-    size_t j;
     float const * src = *src0;
 
     memcpy(dest[0], src, n * sizeof(float));
@@ -23,11 +22,9 @@ void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
     *src0 = src;
 }
 
-size_t /* clips */ _soxr_interleave_f(void * * dest0,
+static size_t /* clips */ _soxr_interleave_f(void * * dest0,
   float const * const * src, size_t n)
 {
-    unsigned i;
-    size_t j;
     float * dest = *dest0;
 
     memcpy(dest, src[0], n * sizeof(float));
@@ -37,18 +34,6 @@ size_t /* clips */ _soxr_interleave_f(void * * dest0,
     *dest0 = dest;
     return 0;
 }
-
-
-
-
-
-char const * soxr_version(void)
-{
-  return "libsoxr-" SOXR_THIS_VERSION_STR;
-}
-
-
-
 
 typedef void sample_t; /* float or double */
 typedef void (* fn_t)(void);
@@ -72,8 +57,6 @@ struct soxr {
   double io_ratio;
   soxr_error_t error;
 
-  void * input_fn_state;
-  soxr_input_fn_t input_fn;
   size_t max_ilen;
 
   resampler_shared_t shared;
@@ -139,19 +122,6 @@ soxr_t soxr_create(
     *error0 = error;
   return p;
 }
-
-
-
-soxr_error_t soxr_set_input_fn(soxr_t p,
-    soxr_input_fn_t input_fn, void * input_fn_state, size_t max_ilen)
-{
-  p->input_fn_state = input_fn_state;
-  p->input_fn = input_fn;
-  p->max_ilen = max_ilen? max_ilen : (size_t)-1;
-  return 0;
-}
-
-
 
 static void soxr_delete0(soxr_t p)
 {
@@ -250,8 +220,6 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     struct soxr tmp = *p;
     soxr_delete0(p);
     memset(p, 0, sizeof(*p));
-    p->input_fn = tmp.input_fn;
-    p->input_fn_state = tmp.input_fn_state;
     memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
     return soxr_set_io_ratio(p, tmp.io_ratio, 0);
   }
@@ -274,14 +242,14 @@ static size_t soxr_input(soxr_t p, void const * in, size_t len)
         p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
     }
 
-    _soxr_deinterleave_f((sample_t **)p->channel_ptrs, &in, len);
+    _soxr_deinterleave_f((float **)p->channel_ptrs, &in, len);
 
     return len;
 }
 
 
 
-static size_t soxr_output_1ch(soxr_t p, unsigned i, soxr_buf_t dest, size_t len)
+static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
 {
   printf("YOYO\n");
 
@@ -304,10 +272,10 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
   size_t done = 0;
 
   for (u = 0; u < 1; ++u) {
-    done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len);
+    done = soxr_output_1ch(p, u, len);
   }
 
-  _soxr_interleave_f(&out, (sample_t const * const *)p->channel_ptrs, done);
+  _soxr_interleave_f(&out, (float const * const *)p->channel_ptrs, done);
 
   return done;
 }
@@ -316,9 +284,7 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
 
 size_t soxr_output(soxr_t p, void * out, size_t len0)
 {
-  size_t odone, odone0 = 0, olen = len0, osize, idone;
-  size_t ilen = min(p->max_ilen, (size_t)ceil((double)olen *p->io_ratio));
-  void const * in = out; /* Set to !=0, so that caller may leave unset. */
+  size_t odone, odone0 = 0, olen = len0, idone;
   bool was_flushing;
 
   if (!p || p->error) return 0;
@@ -327,17 +293,7 @@ size_t soxr_output(soxr_t p, void * out, size_t len0)
   do {
     odone = soxr_output_no_callback(p, out, olen);
     odone0 += odone;
-    if (odone0 == len0 || !p->input_fn || p->flushing)
-      break;
-
-    osize = soxr_datatype_size(0) * 1;
-    out = (char *)out + osize * odone;
-    olen -= odone;
-    idone = p->input_fn(p->input_fn_state, &in, ilen);
-    was_flushing = p->flushing;
-    if (!in)
-      p->error = "input function reported failure";
-    else soxr_input(p, in, idone);
+    break;
   } while (odone || idone || (!was_flushing && p->flushing));
   return odone0;
 }
