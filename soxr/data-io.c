@@ -35,10 +35,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
   }
 }
 
-
-
-#include "rint.h"
-
 #define FLOATX float
 
 #define LSX_RINT_CLIP_2 lsx_rint32_clip_2_f
@@ -89,9 +85,12 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
   return 0; \
 } while (0)
 
+  #include<stdio.h>
+
 size_t /* clips */ _soxr_interleave_f(soxr_datatype_t data_type, void * * dest0,
   float const * const * src, size_t n, unsigned ch, unsigned long * seed)
 {
+  // printf("%d\n", data_type & 3); always 0
   switch (data_type & 3) {
     case SOXR_FLOAT32: INTERLEAVE_TO(float, 1);
     case SOXR_FLOAT64: INTERLEAVE_TO(double, 0);

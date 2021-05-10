@@ -1,13 +1,7 @@
 /* SoX Resampler Library      Copyright (c) 2007-13 robs@users.sourceforge.net
  * Licence for this file: LGPL v2.1                  See LICENCE for details. */
 
-#if defined __GNUC__
-  #pragma GCC system_header
-#elif defined __SUNPRO_C
-  #pragma disable_warn
-#elif defined _MSC_VER
-  #pragma warning(push, 1)
-#endif
+#pragma GCC system_header
 
 #if CORE_TYPE & CORE_SIMD_HALF
   #define VALIGN vAlign
@@ -67,9 +61,3 @@ static VALIGN const sample_t half_fir_coefs_13[] = {
 #endif
 
 #undef VALIGN
-
-#if defined __SUNPRO_C
-  #pragma enable_warn
-#elif defined _MSC_VER
-  #pragma warning(pop)
-#endif

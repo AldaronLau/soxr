@@ -26,19 +26,12 @@
 
 
 
-#if defined __GNUC__
-  #define UNUSED __attribute__ ((unused))
-#else
-  #define UNUSED
-#endif
+#define UNUSED __attribute__ ((unused))
 
-  #ifdef __GNUC__
-    void lsx_dummy(char const *, ...);
-  #else
-    static __inline void lsx_dummy(char const * x, ...) {}
-  #endif
-  #define lsx_debug if(0) lsx_dummy
-  #define lsx_debug_more lsx_debug
+void lsx_dummy(char const *, ...);
+
+#define lsx_debug if(0) lsx_dummy
+#define lsx_debug_more lsx_debug
 
 /* soxr_quality_spec_t.flags: */
 
