@@ -30,6 +30,5 @@ fn main() {
         .define("WITH_HI_PREC_CLOCK", Some("1"))
         .define("WITH_FLOAT_STD_PREC_CLOCK", Some("0"))
         .define("WITH_DEV_TRACE", Some("0"))
-        .define("SOXR_LIB", Some("1"))
         .compile("soxr");
 }

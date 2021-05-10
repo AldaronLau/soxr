@@ -10,7 +10,6 @@
 
 #include "filter.h"
 
-#if defined SOXR_LIB
   #include "internal.h"
   #include "cr.h"
   #if CORE_TYPE & CORE_DBL
@@ -40,9 +39,7 @@
   #endif
 
   extern fn_t RDFT_CB[];
-#else
-  #define RDFT_CB 0
-#endif
+
 
 
 
@@ -283,7 +280,6 @@ static cr_core_t const cr_core = {
 
 
 
-#if defined SOXR_LIB
 
 #include "soxr.h"
 
@@ -311,4 +307,3 @@ fn_t RATE_CB[] = {
   (fn_t)id,
 };
 
-#endif

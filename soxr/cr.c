@@ -10,10 +10,8 @@
 
 #include "filter.h"
 
-#if defined SOXR_LIB
-  #include "internal.h"
-  #define STATIC
-#endif
+#include "internal.h"
+#define STATIC
 
 #include "cr.h"
 
@@ -574,7 +572,6 @@ STATIC void _soxr_close(rate_t * p)
   }
 }
 
-#if defined SOXR_LIB
 STATIC double _soxr_delay(rate_t * p)
 {
   return (double)p->samples_in / p->io_ratio - (double)p->samples_out;
@@ -585,4 +582,3 @@ STATIC void _soxr_sizes(size_t * shared, size_t * channel)
   *shared = sizeof(rate_shared_t);
   *channel = sizeof(rate_t);
 }
-#endif

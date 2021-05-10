@@ -83,11 +83,7 @@ typedef union { /* Fixed point arithmetic */
 
 typedef int core_flags_t;
 
-#if defined SOXR_LIB
 #include "rdft_t.h"
-#else
-typedef void fn_t;
-#endif
 
 typedef struct stage {
   int        num;
@@ -152,7 +148,6 @@ struct rate {
   stage_t    * stages;
 };
 
-#if defined SOXR_LIB
 
 #include "soxr.h"
 
@@ -173,6 +168,5 @@ void _soxr_flush(struct rate * p);
 void _soxr_close(struct rate * p);
 double _soxr_delay(struct rate * p);
 void _soxr_sizes(size_t * shared, size_t * channel);
-#endif
 
 #endif

@@ -1,8 +1,6 @@
 /* SoX Resampler Library      Copyright (c) 2007-16 robs@users.sourceforge.net
  * Licence for this file: LGPL v2.1                  See LICENCE for details. */
 
-#if defined SOXR_LIB
-
 #define lsx_bessel_I_0                 _soxr_bessel_I_0
 #define lsx_cdft_f                     _soxr_cdft_f
 #define lsx_cdft                       _soxr_cdft
@@ -33,5 +31,3 @@
 #define lsx_safe_cdft                  _soxr_safe_cdft
 #define lsx_safe_rdft_f                _soxr_safe_rdft_f
 #define lsx_safe_rdft                  _soxr_safe_rdft
-
-#endif

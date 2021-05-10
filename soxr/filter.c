@@ -45,13 +45,6 @@
 #include "fft4g_cache.h"
 #endif
 
-#if !SOXR_LIB
-#define DFT_FLOAT double
-#define ORDERED_CONVOLVE lsx_ordered_convolve
-#define ORDERED_PARTIAL_CONVOLVE lsx_ordered_partial_convolve
-#include "rdft.h"
-#endif
-
 #if WITH_CR32
 #define DFT_FLOAT float
 #define ORDERED_CONVOLVE lsx_ordered_convolve_f
