@@ -235,7 +235,7 @@ static struct half_fir_info const * find_half_fir(
 
 #include "stdio.h"
 
-STATIC char const * _soxr_init(
+STATIC char const * resampler_init(
   rate_t * const p,             /* Per audio channel. */
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
@@ -467,7 +467,7 @@ static bool stage_process(stage_t * stage, bool flushing)
   return done && fifo_occupancy(fifo) < stage->input_size;
 }
 
-STATIC void _soxr_process(rate_t * p, size_t olen)
+STATIC void resampler_process(rate_t * p, size_t olen)
 {
   int const n = p->flushing? min(-(int)p->samples_out, (int)olen) : (int)olen;
   stage_t * stage = &p->stages[p->num_stages];
@@ -477,15 +477,14 @@ STATIC void _soxr_process(rate_t * p, size_t olen)
     done = stage->is_input || stage_process(stage - 1, p->flushing);
 }
 
-STATIC real * _soxr_input(rate_t * p, real const * samples, size_t n)
-{
+float * resampler_input(rate_t * p, float const * samples, size_t n) {
   if (p->flushing)
     return 0;
   p->samples_in += (int64_t)n;
   return fifo_write(&p->stages[0].fifo, (int)n, samples);
 }
 
-STATIC real const * _soxr_output(rate_t * p, real * samples, size_t * n0)
+STATIC real const * resampler_output(rate_t * p, real * samples, size_t * n0)
 {
   fifo_t * fifo = &p->stages[p->num_stages].fifo;
   int n = p->flushing? min(-(int)p->samples_out, (int)*n0) : (int)*n0;
@@ -493,7 +492,7 @@ STATIC real const * _soxr_output(rate_t * p, real * samples, size_t * n0)
   return fifo_read(fifo, (int)(*n0 = (size_t)n), samples);
 }
 
-STATIC void _soxr_flush(rate_t * p)
+STATIC void resampler_flush(rate_t * p)
 {
   if (p->flushing) return;
   p->samples_out -= (int64_t)((double)p->samples_in / p->io_ratio + .5);
@@ -501,7 +500,7 @@ STATIC void _soxr_flush(rate_t * p)
   p->flushing = true;
 }
 
-STATIC void _soxr_close(rate_t * p)
+STATIC void resampler_close(rate_t * p)
 {
   if (p->stages) {
     fn_t const * const RDFT_CB = p->core->rdft_cb;
@@ -529,12 +528,12 @@ STATIC void _soxr_close(rate_t * p)
   }
 }
 
-STATIC double _soxr_delay(rate_t * p)
+STATIC double resampler_delay(rate_t * p)
 {
   return (double)p->samples_in / p->io_ratio - (double)p->samples_out;
 }
 
-STATIC void _soxr_sizes(size_t * shared, size_t * channel)
+STATIC void resampler_sizes(size_t * shared, size_t * channel)
 {
   *shared = sizeof(rate_shared_t);
   *channel = sizeof(rate_t);

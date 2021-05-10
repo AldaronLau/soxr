@@ -10,6 +10,16 @@
 #include "soxr.h"
 #include "internal.h"
 
+// Prototypes
+typedef struct rate rate_t;
+float* resampler_input(rate_t * p, float const * samples, size_t n);
+void resampler_process(struct rate * p, size_t olen);
+float const * resampler_output(struct rate * p, float * samples, size_t * n0);
+void resampler_flush(struct rate * p);
+void resampler_close(struct rate * p);
+double resampler_delay(struct rate * p);
+void resampler_sizes(size_t * shared, size_t * channel);
+
 static void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
     printf("deinterlieva\n");
 
@@ -34,20 +44,10 @@ static void _soxr_interleave_f(void * * dest0,
     *dest0 = dest;
 }
 
-typedef void sample_t; /* float or double */
 typedef void (* fn_t)(void);
-typedef fn_t control_block_t[10];
+typedef fn_t control_block_t[9];
 
-#define resampler_input        (*(sample_t * (*)(void *, sample_t * samples, size_t   n))p->control_block[0])
-#define resampler_process      (*(void (*)(void *, size_t))p->control_block[1])
-#define resampler_output       (*(sample_t const * (*)(void *, sample_t * samples, size_t * n))p->control_block[2])
-#define resampler_flush        (*(void (*)(void *))p->control_block[3])
-#define resampler_close        (*(void (*)(void *))p->control_block[4])
-#define resampler_delay        (*(double (*)(void *))p->control_block[5])
-#define resampler_sizes        (*(void (*)(size_t * shared, size_t * channel))p->control_block[6])
 #define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, double scale))p->control_block[7])
-#define resampler_set_io_ratio (*(void (*)(void *, double io_ratio, size_t len))p->control_block[8])
-#define resampler_id           (*(char const * (*)(void))p->control_block[9])
 
 typedef void * resampler_t; /* For one channel. */
 typedef void * resampler_shared_t; /* Between channels. */
@@ -73,15 +73,7 @@ soxr_error_t soxr_error(soxr_t p)
   return p->error;
 }
 
-extern control_block_t
-  _soxr_rate32_cb,
-  _soxr_rate32s_cb,
-  _soxr_rate64_cb,
-  _soxr_rate64s_cb,
-  _soxr_vr32_cb;
-
-
-
+extern control_block_t _soxr_rate32_cb;
 
 static void soxr_delete0(soxr_t p)
 {
@@ -165,7 +157,7 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
 {
   printf("YOYO\n");
 
-  sample_t const * src;
+  float const * src;
   if (p->flushing)
     resampler_flush(p->resampler);
   resampler_process(p->resampler, len);

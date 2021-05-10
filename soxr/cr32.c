@@ -73,7 +73,6 @@ static half_fir_info_t const half_firs[] = {
   { 9, half_fir_coefs_9 , h9 , 0  , 152.32f},
 };
 
-#define SIMD_SSE 0
 #define SIMD_AVX 0
 
 #define SIMD_NEON 0
@@ -143,12 +142,6 @@ static half_fir_info_t const half_firs[] = {
 #define CONVOLVE(n) poly_fir_convolve_u100
 #include "poly-fir.h"
 
-
-#define u100_1_b 8
-#define u100_2_b 6
-
-
-
 static poly_fir_t const poly_firs[] = {
   {-1, {{0, vpoly0}, { 7.2f, vpoly1}, {5.0f, vpoly2}}},
   {-1, {{0, vpoly0}, { 9.4f, vpoly1}, {6.7f, vpoly2}}},
@@ -165,7 +158,7 @@ static poly_fir_t const poly_firs[] = {
   {-1, {{0, vpoly0}, {11.4f, vpoly2}, {8.65f,vpoly3}}},
 
   {10.62f, {{U100_l, U100_0}, {0, 0}, {0, 0}}},
-  {11.28f, {{u100_l, u100_0}, {u100_1_b, u100_1}, {u100_2_b, u100_2}}},
+  {11.28f, {{u100_l, u100_0}, {8, u100_1}, {6, u100_2}}},
 
   {-1, {{0, vpoly0}, {   9, vpoly1}, {  6, vpoly2}}},
   {-1, {{0, vpoly0}, {  11, vpoly1}, {  7, vpoly2}}},
@@ -173,8 +166,6 @@ static poly_fir_t const poly_firs[] = {
   {-1, {{0, vpoly0}, {  10, vpoly2}, {  8, vpoly3}}},
   {-1, {{0, vpoly0}, {  12, vpoly2}, {  9, vpoly3}}},
 };
-
-
 
 static cr_core_t const cr_core = {
   {malloc, calloc, free},
@@ -184,31 +175,21 @@ static cr_core_t const cr_core = {
   poly_firs, _soxr_rdft32_cb
 };
 
-
-
-
-#include "soxr.h"
-
-static char const * rate_create(void * channel, void * shared, double io_ratio,
+char const * rate_create(void * channel, void * shared, double io_ratio,
     double scale)
 {
-  return _soxr_init(channel, shared, io_ratio, scale, &cr_core);
+  return resampler_init(channel, shared, io_ratio, scale, &cr_core);
 }
 
-
-
-static char const * id(void) {return "cr32";}
-
 fn_t _soxr_rate32_cb[] = {
-  (fn_t)_soxr_input,
-  (fn_t)_soxr_process,
-  (fn_t)_soxr_output,
-  (fn_t)_soxr_flush,
-  (fn_t)_soxr_close,
-  (fn_t)_soxr_delay,
-  (fn_t)_soxr_sizes,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
   (fn_t)rate_create,
   (fn_t)0,
-  (fn_t)id,
 };
 

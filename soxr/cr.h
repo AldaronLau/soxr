@@ -151,19 +151,11 @@ struct rate {
 
 #include "soxr.h"
 
-char const * _soxr_init(
+char const * resampler_init(
   rate_t * const p,                /* Per audio channel.                            */
   rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
   double multiplier,               /* Linear gain to apply during conversion.   1   */
   cr_core_t const * const core);
-
-void _soxr_process(struct rate * p, size_t olen);
-real * _soxr_input(struct rate * p, real const * samples, size_t n);
-real const * _soxr_output(struct rate * p, real * samples, size_t * n0);
-void _soxr_flush(struct rate * p);
-void _soxr_close(struct rate * p);
-double _soxr_delay(struct rate * p);
-void _soxr_sizes(size_t * shared, size_t * channel);
 
 #endif
