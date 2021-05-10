@@ -75,7 +75,7 @@
   #define FE_INVALID 1
   #define fe_test_invalid() (_statusfp() & _SW_INVALID)
   #define fe_clear_invalid _clearfp /* Note: clears all. */
-#elif HAVE_LRINT && LONG_MAX == 2147483647L && HAVE_FENV_H
+#elif LONG_MAX == 2147483647L
   #include <math.h>
   #include <fenv.h>
   #define FPU_RINT32

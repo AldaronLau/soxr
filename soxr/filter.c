@@ -28,7 +28,7 @@
 #include "fft4g_cache.h"
 #endif
 
-#if (WITH_CR32 && !AVCODEC_FOUND) || (WITH_CR32S && !AVCODEC_FOUND && !WITH_PFFFT)
+#if WITH_CR32
 #define DFT_FLOAT float
 #define DONE_WITH_FFT_CACHE done_with_fft_cache_f
 #define FFT_CACHE_CCRW fft_cache_ccrw_f

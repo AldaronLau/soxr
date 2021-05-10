@@ -10,32 +10,6 @@
 #include "data-io.h"
 #include "internal.h"
 
-#if AVUTIL_FOUND
-  #include <libavutil/cpu.h>
-#endif
-
-
-
-#if WITH_DEV_TRACE
-
-#include <stdarg.h>
-#include <stdio.h>
-
-int _soxr_trace_level;
-
-void _soxr_trace(char const * fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  vfprintf(stderr, fmt, args);
-  fputc('\n', stderr);
-  va_end(args);
-}
-
-#endif
-
-
-
 char const * soxr_version(void)
 {
   return "libsoxr-" SOXR_THIS_VERSION_STR;
@@ -318,24 +292,6 @@ soxr_t soxr_create(
   static const float datatype_full_scale[] = {1, 1, 65536.*32768, 32768};
   soxr_t p = 0;
   soxr_error_t error = 0;
-
-#if WITH_DEV_TRACE
-#define _(x) (char)(sizeof(x)>=10? 'a'+(char)(sizeof(x)-10):'0'+(char)sizeof(x))
-  char const * e = getenv("SOXR_TRACE");
-  _soxr_trace_level = e? atoi(e) : 0;
-  {
-    static char const arch[] = {_(char), _(short), _(int), _(long), _(long long)
-      , ' ', _(float), _(double), _(long double)
-      , ' ', _(int *), _(int (*)(int))
-      , ' ', HAVE_BIGENDIAN ? 'B' : 'L'
-#if defined _OPENMP
-      , ' ', 'O', 'M', 'P'
-#endif
-      , 0};
-#undef _
-    lsx_debug("arch: %s", arch);
-  }
-#endif
 
   if (q_spec && q_spec->e)  error = q_spec->e;
   else if (io_spec && (io_spec->itype | io_spec->otype) >= SOXR_SPLIT * 2)

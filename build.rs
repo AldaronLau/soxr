@@ -18,17 +18,9 @@ fn main() {
         .warnings(false)
         .extra_warnings(false)
         .flag("-w")
-        .define("AVCODEC_FOUND", Some("0"))
-        .define("AVUTIL_FOUND", Some("0"))
-        .define("WITH_PFFFT", Some("1"))
-        .define("HAVE_FENV_H", Some("1"))
-        .define("HAVE_LRINT", Some("1"))
         .define("HAVE_BIGENDIAN", Some("0"))
         .define("WITH_CR32", Some("1"))
         .define("WITH_CR32S", Some("0"))
         .define("WITH_VR32", Some("0"))
-        .define("WITH_HI_PREC_CLOCK", Some("1"))
-        .define("WITH_FLOAT_STD_PREC_CLOCK", Some("0"))
-        .define("WITH_DEV_TRACE", Some("0"))
         .compile("soxr");
 }

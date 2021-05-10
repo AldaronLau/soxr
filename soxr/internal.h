@@ -32,9 +32,6 @@
   #define UNUSED
 #endif
 
-
-
-#if !WITH_DEV_TRACE
   #ifdef __GNUC__
     void lsx_dummy(char const *, ...);
   #else
@@ -42,14 +39,6 @@
   #endif
   #define lsx_debug if(0) lsx_dummy
   #define lsx_debug_more lsx_debug
-#else
-  extern int _soxr_trace_level;
-  void _soxr_trace(char const * fmt, ...);
-  #define lsx_debug      if (_soxr_trace_level > 0) _soxr_trace
-  #define lsx_debug_more if (_soxr_trace_level > 1) _soxr_trace
-#endif
-
-
 
 /* soxr_quality_spec_t.flags: */
 

@@ -448,16 +448,8 @@ STATIC char const * _soxr_init(
     s->L = arbL;
     s->use_hi_prec_clock =
       mode>1 && (q_spec->flags & SOXR_HI_PREC_CLOCK) && !rational;
-#if WITH_FLOAT_STD_PREC_CLOCK
-    if (order && !s->use_hi_prec_clock) {
-      s->at.flt = at;
-      s->step.flt = arbM;
-      s->out_in_ratio = (double)(arbL / s->step.flt);
-    } else
-#endif
     {
       s->at.whole = (int64_t)(at * MULT32 + .5);
-#if WITH_HI_PREC_CLOCK
       if (s->use_hi_prec_clock) {
         double M = arbM * MULT32;
         s->at.fix.ls.parts.ms = 0x80000000ul;
@@ -465,9 +457,9 @@ STATIC char const * _soxr_init(
         M -= (double)s->step.whole;
         M *= MULT32 * MULT32;
         s->step.fix.ls.all = (uint64_t)M;
-      } else
-#endif
+      } else {
         s->step.whole = (int64_t)(arbM * MULT32 + .5);
+      }
       s->out_in_ratio = MULT32 * arbL / (double)s->step.whole;
     }
     ++s;

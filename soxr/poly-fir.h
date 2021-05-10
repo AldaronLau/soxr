@@ -100,23 +100,9 @@
   fifo_read(&p->fifo, at.parts.ms, NULL); \
   p->at.whole = at.parts.ls; }
 
+#define SPCORE stdPrecCore
 
-
-#if WITH_FLOAT_STD_PREC_CLOCK
-  #define SPCORE floatPrecCore
-#else
-  #define SPCORE stdPrecCore
-#endif
-
-
-
-#if WITH_HI_PREC_CLOCK
-  #define core(n) if (p->use_hi_prec_clock) highPrecCore(n) else SPCORE(n)
-#else
-  #define core(n) SPCORE(n)
-#endif
-
-
+#define core(n) if (p->use_hi_prec_clock) highPrecCore(n) else SPCORE(n)
 
 static void FUNCTION(stage_t * p, fifo_t * output_fifo)
 {
