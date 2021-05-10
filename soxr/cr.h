@@ -7,12 +7,11 @@
 #define  FIFO_SIZE_T int
 #include "fifo.h"
 
-typedef void real; /* float or double */
 struct stage;
 typedef void (* stage_fn_t)(struct stage * input, fifo_t * output);
 typedef struct half_fir_info {
   int num_coefs;
-  real const * coefs;
+  float const * coefs;
   stage_fn_t fn, dfn;
   float att;
 } half_fir_info_t;
@@ -56,11 +55,11 @@ typedef union { /* Uint64 in parts */
 typedef struct {
   int        dft_length, num_taps, post_peak;
   void       * dft_forward_setup, * dft_backward_setup;
-  real   * coefs;
+  float   * coefs;
 } dft_filter_t;
 
 typedef struct { /* So generated filter coefs may be shared between channels */
-  real   * poly_fir_coefs;
+  float   * poly_fir_coefs;
   dft_filter_t dft_filter[2];
 } rate_shared_t;
 
@@ -97,9 +96,9 @@ typedef struct stage {
   fn_t const * rdft_cb;
   rate_shared_t * shared;
   unsigned   dft_filter_num; /* Which, if any, of the 2 DFT filters to use */
-  real       * dft_scratch;
+  float       * dft_scratch;
   float      * dft_out;
-  real const * coefs;
+  float const * coefs;
 
   /* For a stage with variable L/M: */
   step_t     at, step;

@@ -24,12 +24,12 @@
   if (interp_order > 0) coef_coef(C,T,1) = (T)b; \
   coef_coef(C,T,0) = (T)f0;}
 
-static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
+static float * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     int num_phases, int interp_order,
     core_flags_t core_flags)
 {
   int i, j, length = num_coefs * num_phases * (interp_order + 1);
-  real * result = calloc(1, (size_t) length << 2);
+  float * result = calloc(1, (size_t) length << 2);
   double fm1 = coefs[0], f1 = 0, f2 = 0;
 
   for (i = num_coefs - 1; i >= 0; --i)
@@ -59,7 +59,7 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
 
 static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
 {
-  real * output, * dft_out;
+  float * output, * dft_out;
   int i, j, num_in = max(0, fifo_occupancy(&p->fifo));
   rate_shared_t const * s = p->shared;
   dft_filter_t const * f = &s->dft_filter[p->dft_filter_num];
@@ -70,7 +70,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
     size_t const sizeof_real = sizeof(char) << 2;
 
     div_t divd = div(f->dft_length - overlap - p->at.integer + p->L - 1, p->L);
-    real const * input = fifo_read_ptr(&p->fifo);
+    float const * input = fifo_read_ptr(&p->fifo);
     fifo_read(&p->fifo, divd.quot, NULL);
     num_in -= divd.quot;
 
@@ -471,7 +471,7 @@ float * resampler_input(rate_t * p, float const * samples, size_t n) {
   return fifo_write(&p->stages[0].fifo, (int)n, samples);
 }
 
-STATIC real const * resampler_output(rate_t * p, real * samples, size_t * n0)
+STATIC float const * resampler_output(rate_t * p, float * samples, size_t * n0)
 {
   fifo_t * fifo = &p->stages[p->num_stages].fifo;
   int n = p->flushing? min(-(int)p->samples_out, (int)*n0) : (int)*n0;
