@@ -293,20 +293,20 @@ Appendix :
   #define cos(x)   cosf(x)
   #define atan(x)  atanf(x)
 
-  #define cdft  lsx_cdft_f
+  #define cdft  _soxr_cdft_f
   #define rdft  _soxr_rdft_f
-  #define ddct  lsx_ddct_f
-  #define ddst  lsx_ddst_f
-  #define dfct  lsx_dfct_f
-  #define dfst  lsx_dfst_f
+  #define ddct  _soxr_ddct_f
+  #define ddst  _soxr_ddst_f
+  #define dfct  _soxr_dfct_f
+  #define dfst  _soxr_dfst_f
 #else
   #define one_half 0.5
-  #define cdft  lsx_cdft
+  #define cdft  _soxr_cdft
   #define rdft  _soxr_rdft
-  #define ddct  lsx_ddct
-  #define ddst  lsx_ddst
-  #define dfct  lsx_dfct
-  #define dfst  lsx_dfst
+  #define ddct  _soxr_ddct
+  #define ddst  _soxr_ddst
+  #define dfct  _soxr_dfct
+  #define dfst  _soxr_dfst
 #endif
 
 static void bitrv2conj(int n, int *ip, double *a);

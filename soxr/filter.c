@@ -11,19 +11,19 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-#if 1 /* Always need this, for lsx_fir_to_phase. */
+#if 1 /* Always need this, for _soxr_fir_to_phase. */
 #define DFT_FLOAT double
 #define DONE_WITH_FFT_CACHE done_with_fft_cache
 #define FFT_CACHE_CCRW fft_cache_ccrw
 #define FFT_LEN fft_len
-#define LSX_CDFT lsx_cdft
-#define LSX_CLEAR_FFT_CACHE lsx_clear_fft_cache
+#define LSX_CDFT _soxr_cdft
+#define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache
 #define LSX_FFT_BR lsx_fft_br
 #define LSX_FFT_SC lsx_fft_sc
-#define LSX_INIT_FFT_CACHE lsx_init_fft_cache
+#define LSX_INIT_FFT_CACHE _soxr_init_fft_cache
 #define LSX_RDFT _soxr_rdft
-#define LSX_SAFE_CDFT lsx_safe_cdft
-#define LSX_SAFE_RDFT lsx_safe_rdft
+#define LSX_SAFE_CDFT _soxr_safe_cdft
+#define LSX_SAFE_RDFT _soxr_safe_rdft
 #define UPDATE_FFT_CACHE update_fft_cache
 #include "fft4g_cache.h"
 #endif
@@ -33,26 +33,26 @@
 #define DONE_WITH_FFT_CACHE done_with_fft_cache_f
 #define FFT_CACHE_CCRW fft_cache_ccrw_f
 #define FFT_LEN fft_len_f
-#define LSX_CDFT lsx_cdft_f
-#define LSX_CLEAR_FFT_CACHE lsx_clear_fft_cache_f
+#define LSX_CDFT _soxr_cdft_f
+#define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache_f
 #define LSX_FFT_BR lsx_fft_br_f
 #define LSX_FFT_SC lsx_fft_sc_f
-#define LSX_INIT_FFT_CACHE lsx_init_fft_cache_f
+#define LSX_INIT_FFT_CACHE _soxr_init_fft_cache_f
 #define LSX_RDFT _soxr_rdft_f
-#define LSX_SAFE_CDFT lsx_safe_cdft_f
-#define LSX_SAFE_RDFT lsx_safe_rdft_f
+#define LSX_SAFE_CDFT _soxr_safe_cdft_f
+#define LSX_SAFE_RDFT _soxr_safe_rdft_f
 #define UPDATE_FFT_CACHE update_fft_cache_f
 #include "fft4g_cache.h"
 #endif
 
 #if WITH_CR32
 #define DFT_FLOAT float
-#define ORDERED_CONVOLVE lsx_ordered_convolve_f
-#define ORDERED_PARTIAL_CONVOLVE lsx_ordered_partial_convolve_f
+#define ORDERED_CONVOLVE _soxr_ordered_convolve_f
+#define ORDERED_PARTIAL_CONVOLVE _soxr_ordered_partial_convolve_f
 #include "rdft.h"
 #endif
 
-double lsx_kaiser_beta(double att, double tr_bw)
+double _soxr_kaiser_beta(double att, double tr_bw)
 {
   if (att >= 60) {
     static const double coefs[][4] = {
@@ -79,12 +79,12 @@ double lsx_kaiser_beta(double att, double tr_bw)
   return 0;
 }
 
-double * lsx_make_lpf(
+double * _soxr_make_lpf(
     int num_taps, double Fc, double beta, double rho, double scale)
 {
   int i, m = num_taps - 1;
   double * h = malloc((size_t)num_taps * sizeof(*h));
-  double mult = scale / lsx_bessel_I_0(beta), mult1 = 1 / (.5 * m + rho);
+  double mult = scale / _soxr_bessel_I_0(beta), mult1 = 1 / (.5 * m + rho);
   assert(Fc >= 0 && Fc <= 1);
   lsx_debug("make_lpf(n=%i Fc=%.7g beta=%g rho=%g scale=%g)",
       num_taps, Fc, beta, rho, scale);
@@ -92,22 +92,22 @@ double * lsx_make_lpf(
   if (h) for (i = 0; i <= m / 2; ++i) {
     double z = i - .5 * m, x = z * M_PI, y = z * mult1;
     h[i] = x!=0? sin(Fc * x) / x : Fc;
-    h[i] *= lsx_bessel_I_0(beta * sqrt(1 - y * y)) * mult;
+    h[i] *= _soxr_bessel_I_0(beta * sqrt(1 - y * y)) * mult;
     if (m - i != i)
       h[m - i] = h[i];
   }
   return h;
 }
 
-void lsx_kaiser_params(double att, double Fc, double tr_bw, double * beta, int * num_taps)
+void _soxr_kaiser_params(double att, double Fc, double tr_bw, double * beta, int * num_taps)
 {
-  *beta = *beta < 0? lsx_kaiser_beta(att, tr_bw * .5 / Fc): *beta;
+  *beta = *beta < 0? _soxr_kaiser_beta(att, tr_bw * .5 / Fc): *beta;
   att = att < 60? (att - 7.95) / (2.285 * M_PI * 2) :
     ((.0007528358-1.577737e-05**beta)**beta+.6248022)**beta+.06186902;
   *num_taps = !*num_taps? (int)ceil(att/tr_bw + 1) : *num_taps;
 }
 
-double * lsx_design_lpf(
+double * _soxr_design_lpf(
     double Fp,      /* End of pass-band */
     double Fs,      /* Start of stop-band */
     double Fn,      /* Nyquist freq; e.g. 0.5, 1, PI */
@@ -128,11 +128,11 @@ double * lsx_design_lpf(
   tr_bw = min(tr_bw, .5 * Fs);
   Fc = Fs - tr_bw;
   assert(Fc - tr_bw >= 0);
-  lsx_kaiser_params(att, Fc, tr_bw, &beta, num_taps);
+  _soxr_kaiser_params(att, Fc, tr_bw, &beta, num_taps);
   if (!n)
     *num_taps = phases > 1? *num_taps / phases * phases + phases - 1 :
       (*num_taps + modulo - 2) / modulo * modulo + 1;
-  return Fn < 0? 0 : lsx_make_lpf(*num_taps, Fc, beta, rho, (double)phases);
+  return Fn < 0? 0 : _soxr_make_lpf(*num_taps, Fc, beta, rho, (double)phases);
 }
 
 static double safe_log(double x)
@@ -144,7 +144,7 @@ static double safe_log(double x)
   return -26;
 }
 
-void lsx_fir_to_phase(double * * h, int * len, int * post_len, double phase)
+void _soxr_fir_to_phase(double * * h, int * len, int * post_len, double phase)
 {
   double * pi_wraps, * work, phase1 = (phase > 50 ? 100 - phase : phase) / 50;
   int i, work_len, begin, end, imp_peak = 0, peak = 0;
@@ -157,7 +157,7 @@ void lsx_fir_to_phase(double * * h, int * len, int * post_len, double phase)
   pi_wraps = malloc((((size_t)work_len + 2) / 2) * sizeof(*pi_wraps));
 
   memcpy(work, *h, (size_t)*len * sizeof(*work));
-  lsx_safe_rdft(work_len, 1, work); /* Cepstral: */
+  _soxr_safe_rdft(work_len, 1, work); /* Cepstral: */
   LSX_UNPACK(work, work_len);
 
   for (i = 0; i <= work_len; i += 2) {
@@ -179,14 +179,14 @@ void lsx_fir_to_phase(double * * h, int * len, int * post_len, double phase)
     work[i + 1] = 0;
   }
   LSX_PACK(work, work_len);
-  lsx_safe_rdft(work_len, -1, work);
+  _soxr_safe_rdft(work_len, -1, work);
   for (i = 0; i < work_len; ++i) work[i] *= 2. / work_len;
 
   for (i = 1; i < work_len / 2; ++i) { /* Window to reject acausal components */
     work[i] *= 2;
     work[i + work_len / 2] = 0;
   }
-  lsx_safe_rdft(work_len, 1, work);
+  _soxr_safe_rdft(work_len, 1, work);
 
   for (i = 2; i < work_len; i += 2) /* Interpolate between linear & min phase */
     work[i + 1] = phase1 * i / work_len * pi_wraps[work_len >> 1] +
@@ -199,7 +199,7 @@ void lsx_fir_to_phase(double * * h, int * len, int * post_len, double phase)
     work[i + 1] = x * sin(work[i + 1]);
   }
 
-  lsx_safe_rdft(work_len, -1, work);
+  _soxr_safe_rdft(work_len, -1, work);
   for (i = 0; i < work_len; ++i) work[i] *= 2. / work_len;
 
   /* Find peak pos. */
@@ -243,7 +243,7 @@ F_x(sinePsi, ((9.0667e-08*x-5.6114e-05)*x+.013658)*x+1.0977 )
 F_x(sinePow, log(.5)/log(sin(x*.5)) )
 #define dB_to_linear(x) exp((x) * (M_LN10 * 0.05))
 
-double lsx_f_resp(double t, double a)
+double _soxr_f_resp(double t, double a)
 {
   double x;
   if (t > (a <= 160? .8 : .82)) {
@@ -260,7 +260,7 @@ double lsx_f_resp(double t, double a)
   return linear_to_dB(x);
 }
 
-double lsx_inv_f_resp(double drop, double a)
+double _soxr_inv_f_resp(double drop, double a)
 {
   double x = sinePhi(a), s;
   drop = dB_to_linear(drop);

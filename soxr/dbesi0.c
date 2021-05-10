@@ -7,7 +7,7 @@ Package home:  http://www.kurims.kyoto-u.ac.jp/~ooura/bessel.html
 */
 
 #include "filter.h"
-#define dbesi0 lsx_bessel_I_0
+#define dbesi0 _soxr_bessel_I_0
 
 /* Bessel I_0(x) function in double precision */
 

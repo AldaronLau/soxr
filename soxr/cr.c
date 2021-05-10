@@ -192,10 +192,10 @@ static void dft_stage_init(
 
   if (!dft_length) {
     int k = phase_response == 50 && lsx_is_power_of_2(L) && Fn == L? L << 1 : 4;
-    double m, * h = lsx_design_lpf(Fp, Fs, Fn, att, &num_taps, -k, -1.);
+    double m, * h = _soxr_design_lpf(Fp, Fs, Fn, att, &num_taps, -k, -1.);
 
     if (phase_response != 50)
-      lsx_fir_to_phase(&h, &num_taps, &f->post_peak, phase_response);
+      _soxr_fir_to_phase(&h, &num_taps, &f->post_peak, phase_response);
     else f->post_peak = num_taps / 2;
 
     dft_length = set_dft_length(num_taps, (int)min_dft_size, (int)large_dft_size);
@@ -371,8 +371,8 @@ STATIC char const * _soxr_init(
 
   if (have_pre_stage) {
     if (maintain_3dB_pt && have_post_stage) {    /* Trans. bands overlapping. */
-      double x = tbw0 * lsx_inv_f_resp(-3., att);
-      x = -lsx_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
+      double x = tbw0 * _soxr_inv_f_resp(-3., att);
+      x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
       if (x > .035) {
         tbw_tighten = ((4.3074e-3 - 3.9121e-4 * x) * x - .040009) * x + 1.0014;
         lsx_debug("tbw_tighten=%g (%gdB)", tbw_tighten, x);
@@ -406,7 +406,7 @@ STATIC char const * _soxr_init(
     else Fn = 1, Fs = 2 - (mode? Fp1 + (Fs1 - Fp1) * .7 : Fs1);
 
     if (mode)
-      Fp = Fs - (Fs - Fp) / (1 - lsx_inv_f_resp(rolloffs[rolloff], attArb));
+      Fp = Fs - (Fs - Fp) / (1 - _soxr_inv_f_resp(rolloffs[rolloff], attArb));
 
     i = (interpolator < 0? !rational : max(interpolator, !rational)) - 1;
     do {
@@ -418,7 +418,7 @@ STATIC char const * _soxr_init(
       phases = !rational? (1 << phase_bits) : arbL;
       if (f->interp[0].scalar==0) {
         int phases0 = max(phases, 19), n0 = 0;
-        lsx_design_lpf(Fp, Fs, -Fn, attArb, &n0, phases0, f->beta);
+        _soxr_design_lpf(Fp, Fs, -Fn, attArb, &n0, phases0, f->beta);
         num_coefs = n0 / phases0 + 1, num_coefs += num_coefs & !preM;
       }
       if ((num_coefs & 1) && rational && (arbL & 1))
@@ -431,7 +431,7 @@ STATIC char const * _soxr_init(
 
     if (!s->shared->poly_fir_coefs) {
       int num_taps = num_coefs * phases - 1;
-      double * coefs = lsx_design_lpf(
+      double * coefs = _soxr_design_lpf(
           Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
           coefs, num_coefs, phases, order, multiplier, core_flags, &core->mem);
