@@ -240,7 +240,6 @@ struct soxr_runtime_spec {                                       /* Typically */
   unsigned log2_min_dft_size;   /* For DFT efficiency. [8,15]           10    */
   unsigned log2_large_dft_size; /* For DFT efficiency. [8,20]           17    */
   unsigned coef_size_kbytes;    /* For SOXR_COEF_INTERP_AUTO (below).   400   */
-  unsigned num_threads;         /* 0: per OMP_NUM_THREADS; 1: 1 thread.  1    */
   void * e;                     /* Reserved for internal use.            0    */
   unsigned long flags;          /* Per the following #defines.           0    */
 };
@@ -286,8 +285,7 @@ SOXR soxr_quality_spec_t soxr_quality_spec(
 
 
 
-SOXR soxr_runtime_spec_t soxr_runtime_spec(
-    unsigned num_threads);
+SOXR soxr_runtime_spec_t soxr_runtime_spec(void);
 
 
 

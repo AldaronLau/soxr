@@ -129,14 +129,12 @@ soxr_error_t soxr_error(soxr_t p)
 
 
 
-soxr_runtime_spec_t soxr_runtime_spec(unsigned num_threads)
-{
+soxr_runtime_spec_t soxr_runtime_spec(void) {
   soxr_runtime_spec_t spec, * p = &spec;
   memset(p, 0, sizeof(*p));
   p->log2_min_dft_size = 10;
   p->log2_large_dft_size = 17;
   p->coef_size_kbytes = 400;
-  p->num_threads = num_threads;
   return spec;
 }
 
@@ -231,12 +229,11 @@ soxr_t soxr_create(
     else
       p->io_spec.scale = 1;
 
-    p->runtime_spec = runtime_spec? *runtime_spec : soxr_runtime_spec(1);
+    p->runtime_spec = runtime_spec? *runtime_spec : soxr_runtime_spec();
 
     runtime_num("SOXR_MIN_DFT_SIZE", 8, 15, &p->runtime_spec.log2_min_dft_size);
     runtime_num("SOXR_LARGE_DFT_SIZE", 8, 20, &p->runtime_spec.log2_large_dft_size);
     runtime_num("SOXR_COEFS_SIZE", 100, 800, &p->runtime_spec.coef_size_kbytes);
-    runtime_num("SOXR_NUM_THREADS", 0, 64, &p->runtime_spec.num_threads);
     runtime_flag("SOXR_COEF_INTERP", 2, 0, &p->runtime_spec.flags);
 
     runtime_flag("SOXR_STRICT_BUF", 1, 2, &p->runtime_spec.flags);
@@ -447,17 +444,7 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
   unsigned u;
   size_t done = 0;
   bool separated = !!(p->io_spec.otype & SOXR_SPLIT);
-#if defined _OPENMP
-  int i;
-  if (!p->runtime_spec.num_threads && 1 > 1)
-#pragma omp parallel for
-  for (i = 0; i < (int)1; ++i) {
-    size_t done1;
-    done1 = soxr_output_1ch(p, (unsigned)i, ((soxr_bufs_t)out)[i], len, separated);
-    if (!i)
-      done = done1;
-  } else
-#endif
+
   for (u = 0; u < 1; ++u)
     done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len, separated);
 
@@ -545,22 +532,10 @@ soxr_error_t soxr_process(soxr_t p,
   }
   p->flushing |= ilen == ilen0 && flush_requested;
 
-  if (!out && !in)
+  if (!out && !in) {
     idone = ilen;
-  else if (p->io_spec.itype & p->io_spec.otype & SOXR_SPLIT) { /* Both i & o */
-#if defined _OPENMP
-    int i;
-    if (!p->runtime_spec.num_threads && 1 > 1)
-#pragma omp parallel for
-    for (i = 0; i < (int)1; ++i) {
-      size_t done;
-      if (in)
-        soxr_input_1ch(p, (unsigned)i, ((soxr_cbufs_t)in)[i], ilen);
-      done = soxr_output_1ch(p, (unsigned)i, ((soxr_bufs_t)out)[i], olen, true);
-      if (!i)
-        odone = done;
-    } else
-#endif
+  } else if (p->io_spec.itype & p->io_spec.otype & SOXR_SPLIT) { /* Both i & o */
+
     for (u = 0; u < 1; ++u) {
       if (in) {
         soxr_input_1ch(p, u, ((soxr_cbufs_t)in)[u], ilen);
@@ -568,8 +543,7 @@ soxr_error_t soxr_process(soxr_t p,
       odone = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], olen, true);
     }
     idone = ilen;
-  }
-  else {
+  } else {
     idone = ilen? soxr_input (p, in , ilen) : 0;
     odone = soxr_output(p, out, olen);
   }
