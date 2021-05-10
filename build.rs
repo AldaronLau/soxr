@@ -6,7 +6,6 @@ fn main() {
         .file("soxr/dbesi0.c")
         .file("soxr/filter.c")
         .file("soxr/fft4g32.c")
-        .file("soxr/fft4g64.c")
         .warnings(true)
         .extra_warnings(true)
         .flag("-Wall")
