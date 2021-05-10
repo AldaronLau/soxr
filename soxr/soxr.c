@@ -327,21 +327,12 @@ soxr_error_t soxr_process(soxr_t p,
   }
   p->flushing |= ilen == ilen0 && flush_requested;
 
-  if (!out && !in) {
-    idone = ilen;
-  } else {
     idone = ilen? soxr_input (p, in , ilen) : 0;
     odone = soxr_output(p, out, olen);
-  }
+
   if (idone0) *idone0 = idone;
   if (odone0) *odone0 = odone;
   return p->error;
 }
 
-soxr_error_t soxr_set_error(soxr_t p, soxr_error_t error)
-{
-  if (!p) return "null pointer";
-  if (!p->error && p->error != error) return p->error;
-  p->error = error;
-  return 0;
-}
+

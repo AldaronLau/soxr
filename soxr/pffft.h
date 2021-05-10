@@ -84,10 +84,6 @@
 
 #include <stddef.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #if PFFFT_DOUBLE
 #define float double
 #endif
@@ -119,10 +115,6 @@ extern "C" {
   void pffft_zconvolve_accumulate(PFFFT_Setup *setup, const float *dft_a, const float *dft_b, float *dft_ab, float scaling);
 
 #undef float
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 

@@ -11,9 +11,6 @@ extern "C" {
         /* All following arguments are optional (may be set to NULL). */
         error: *mut *const c_char,   /* To report any error during creation. */
     ) -> *mut c_void;               
-/*
-        Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
-*/
 
     /* If not using an app-supplied input function, after creating a stream
      * resampler, repeatedly call: */

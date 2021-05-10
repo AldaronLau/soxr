@@ -23,12 +23,7 @@
 #define soxr_included
 
 
-#if defined __cplusplus
-  #include <cstddef>
-  extern "C" {
-#else
   #include <stddef.h>
-#endif
 
 typedef struct soxr_io_spec soxr_io_spec_t;
 
@@ -131,90 +126,6 @@ void         soxr_delete(soxr_t);  /* Free resources. */
 
 soxr_error_t soxr_set_io_ratio(soxr_t, double io_ratio, size_t slew_len);
 
-
-
-/* -------------------------- API type definitions -------------------------- */
-
-
-// FIXME
-#define soxr_datatype_size(x)  /* Returns `sizeof' a soxr_datatype_t sample. */\
-  ((unsigned char *)"\4\10\4\2")[(x)&3]
-
-
-
-
-#define SOXR_TPDF              0     /* Applicable only if otype is INT16. */
-#define SOXR_NO_DITHER         8u    /* Disable the above. */
-
-#define SOXR_ROLLOFF_SMALL     0u    /* <= 0.01 dB */
-#define SOXR_ROLLOFF_MEDIUM    1u    /* <= 0.35 dB */
-#define SOXR_ROLLOFF_NONE      2u    /* For Chebyshev bandwidth. */
-
-#define SOXR_HI_PREC_CLOCK     8u  /* Increase `irrational' ratio accuracy. */
-#define SOXR_DOUBLE_PRECISION 16u  /* Use D.P. calcs even if precision <= 20. */
-#define SOXR_VR               32u  /* Variable-rate resampling. */
-
-
-
-                                   /* For `irrational' ratios only: */
-#define SOXR_COEF_INTERP_AUTO  0u    /* Auto select coef. interpolation. */
-#define SOXR_COEF_INTERP_LOW   2u    /* Man. select: less CPU, more memory. */
-#define SOXR_COEF_INTERP_HIGH  3u    /* Man. select: more CPU, less memory. */
-
-
-
-/* -------------------------- API type constructors ------------------------- */
-
-/* These functions allow setting of the most commonly-used structure
- * parameters, with other parameters being given default values.  The default
- * values may then be overridden, directly in the structure, if needed.  */
-
-                                  /* The 5 standard qualities found in SoX: */
-#define SOXR_QQ                 0   /* 'Quick' cubic interpolation. */
-#define SOXR_LQ                 1   /* 'Low' 16-bit with larger rolloff. */
-#define SOXR_MQ                 2   /* 'Medium' 16-bit with medium rolloff. */
-#define SOXR_HQ                 SOXR_20_BITQ /* 'High quality'. */
-#define SOXR_VHQ                SOXR_28_BITQ /* 'Very high quality'. */
-
-#define SOXR_16_BITQ            3
-#define SOXR_20_BITQ            4
-#define SOXR_24_BITQ            5
-#define SOXR_28_BITQ            6
-#define SOXR_32_BITQ            7
-                                /* Reserved for internal use (to be removed): */
-#define SOXR_LSR0Q              8     /* 'Best sinc'. */
-#define SOXR_LSR1Q              9     /* 'Medium sinc'. */
-#define SOXR_LSR2Q              10    /* 'Fast sinc'. */
-
-#define SOXR_LINEAR_PHASE       0x00
-#define SOXR_INTERMEDIATE_PHASE 0x10
-#define SOXR_MINIMUM_PHASE      0x30
-
-#define SOXR_STEEP_FILTER       0x40
-
-soxr_io_spec_t soxr_io_spec(void);
-
-/* --------------------------- Advanced use only ---------------------------- */
-
-/* For new designs, the following functions/usage will probably not be needed.
- * They might be useful when adding soxr into an existing design where values
- * for the resampling-rate and/or number-of-channels parameters to soxr_create
- * are not available when that function will be called.  In such cases, the
- * relevant soxr_create parameter(s) can be given as 0, then one or both of the
- * following (as appropriate) later invoked (but prior to calling soxr_process
- * or soxr_output):
- *
- * soxr_set_error(soxr, soxr_set_io_ratio(soxr, io_ratio, 0));
- * soxr_set_error(soxr, soxr_set_num_channels(soxr, num_channels));
- */
-
-soxr_error_t soxr_set_error(soxr_t, soxr_error_t);
-
-
 #undef SOXR
-
-#if defined __cplusplus
-}
-#endif
 
 #endif
