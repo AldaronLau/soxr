@@ -24,13 +24,6 @@
 #define iAL(a) (int)AL(a)
 #define sqr(a) ((a) * (a))
 
-
-
 #define UNUSED __attribute__ ((unused))
-
-void lsx_dummy(char const *, ...);
-
-#define lsx_debug if(0) lsx_dummy
-#define lsx_debug_more lsx_debug
 
 #endif

@@ -144,14 +144,19 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
       if ((p->core_flags & CORE_SIMD_DFT) && p->step.integer == 1)
         memcpy(output, dft_out, (size_t)f->dft_length * sizeof_real);
       if (p->step.integer != 1) {
-        if (IS_FLOAT32)
+        if (IS_FLOAT32) {
           for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
               i += p->step.integer)
+          {
             ((float *)output)[j] = ((float *)dft_out)[i];
-        else if (WITH_FLOAT64)
+          }
+        } else if (WITH_FLOAT64) {
           for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
               i += p->step.integer)
+          {
             ((double *)output)[j] = ((double *)dft_out)[i];
+          }
+        }
         p->remM = i - (f->dft_length - overlap);
         fifo_trim_by(output_fifo, f->dft_length - j);
       }
@@ -193,9 +198,11 @@ static void dft_stage_init(
     int k = phase_response == 50 && lsx_is_power_of_2(L) && Fn == L? L << 1 : 4;
     double m, * h = _soxr_design_lpf(Fp, Fs, Fn, att, &num_taps, -k, -1.);
 
-    if (phase_response != 50)
-      _soxr_fir_to_phase(&h, &num_taps, &f->post_peak, phase_response);
-    else f->post_peak = num_taps / 2;
+    if (phase_response != 50) {
+        _soxr_fir_to_phase(&h, &num_taps, &f->post_peak, phase_response);
+    } else {
+        f->post_peak = num_taps / 2;
+    }
 
     dft_length = set_dft_length(num_taps, (int)min_dft_size, (int)large_dft_size);
     f->coefs = rdft_calloc((size_t)dft_length, sizeof_real);
@@ -208,10 +215,12 @@ static void dft_stage_init(
     free(h);
   }
 
-  if (rdft_flags() & RDFT_IS_SIMD)
+  if (rdft_flags() & RDFT_IS_SIMD) {
     p->dft_out = rdft_malloc(sizeof_real * (size_t)dft_length);
-  if (rdft_flags() & RDFT_NEEDS_SCRATCH)
+  }
+  if (rdft_flags() & RDFT_NEEDS_SCRATCH) {
     p->dft_scratch = rdft_malloc(2 * sizeof_real * (size_t)dft_length);
+  }
 
   if (!f->dft_length) {
     void * coef_setup = rdft_forward_setup(dft_length);
@@ -226,8 +235,6 @@ static void dft_stage_init(
     rdft_delete_setup(coef_setup);
     f->num_taps = num_taps;
     f->dft_length = dft_length;
-    lsx_debug("fir_len=%i dft_length=%i Fp=%g Fs=%g Fn=%g att=%g %i/%i",
-        num_taps, dft_length, Fp, Fs, Fn, att, L, M);
   }
   *multiplier = 1;
   p->out_in_ratio = (double)L / M;
@@ -376,7 +383,6 @@ STATIC char const * _soxr_init(
       x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
       if (x > .035) {
         tbw_tighten = ((4.3074e-3 - 3.9121e-4 * x) * x - .040009) * x + 1.0014;
-        lsx_debug("tbw_tighten=%g (%gdB)", tbw_tighten, x);
       }
     }
     Fn1 = preM? max(preL, preM) : arbM / arbL;
@@ -393,8 +399,7 @@ STATIC char const * _soxr_init(
     s->pre_post = max(3, s->step.integer);
     s->preload = s->pre = 1;
     s->out_in_ratio = MULT32 / (double)s->step.whole;
-  }
-  else if (have_arb_stage) {                     /* Higher quality arb stage: */
+  } else if (have_arb_stage) {                     /* Higher quality arb stage: */
     static const float rolloffs[] = {-.01f, -.3f, 0, -.103f};
     poly_fir_t const * f = &core->poly_firs[6*(upsample+!!preM)+mode-!upsample];
     int order, num_coefs = (int)f->interp[0].scalar, phase_bits, phases;
@@ -436,8 +441,6 @@ STATIC char const * _soxr_init(
           Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
           coefs, num_coefs, phases, order, multiplier, core_flags, &core->mem);
-      lsx_debug("fir_len=%i phases=%i coef_interp=%i size=%.3gk",
-          num_coefs, phases, order, (double)coefs_size / 1000.);
       free(coefs);
     }
     multiplier = 1;
@@ -471,15 +474,10 @@ STATIC char const * _soxr_init(
         s++, postL, postM, &multiplier, 10,
         17, core_flags, core->rdft_cb);
 
-  lsx_debug("%g: >>%i %i/%i %i/%g %i/%i (%x)", 1/io_ratio,
-      shr, preL, preM, arbL, arbM, postL, postM, core_flags);
-
   for (i = 0, s = p->stages; i < p->num_stages; ++i, ++s) {
     fifo_create(&s->fifo, (int)sizeof_real);
     memset(fifo_reserve(&s->fifo, s->preload), 0,
         sizeof_real * (size_t)s->preload);
-    lsx_debug_more("%5i|%-5i preload=%i remL=%i",
-        s->pre, s->pre_post-s->pre, s->preload, s->at.integer);
   }
   fifo_create(&s->fifo, (int)sizeof_real);
   return 0;

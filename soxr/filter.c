@@ -83,8 +83,6 @@ double * _soxr_make_lpf(
   double * h = malloc((size_t)num_taps * sizeof(*h));
   double mult = scale / _soxr_bessel_I_0(beta), mult1 = 1 / (.5 * m + rho);
   assert(Fc >= 0 && Fc <= 1);
-  lsx_debug("make_lpf(n=%i Fc=%.7g beta=%g rho=%g scale=%g)",
-      num_taps, Fc, beta, rho, scale);
 
   if (h) for (i = 0; i <= m / 2; ++i) {
     double z = i - .5 * m, x = z * M_PI, y = z * mult1;
@@ -116,9 +114,6 @@ double * _soxr_design_lpf(
   int n = *num_taps, phases = max(k, 1), modulo = max(-k, 1);
   double tr_bw, Fc, rho = phases == 1? .5 : att < 120? .63 : .75;
 
-  lsx_debug_more("./sinctest %-12.7g %-12.7g %g 0 %-5g %i %i 50 %g %g -4 >1",
-      Fp, Fs, Fn, att, *num_taps, k, beta, rho);
-
   Fp /= fabs(Fn), Fs /= fabs(Fn);        /* Normalise to Fn = 1 */
   tr_bw = .5 * (Fs - Fp); /* Transition band-width: 6dB to stop points */
   tr_bw /= phases, Fs /= phases;
@@ -137,7 +132,6 @@ static double safe_log(double x)
   assert(x >= 0);
   if (x!=0)
     return log(x);
-  lsx_debug("log(0)");
   return -26;
 }
 
@@ -228,9 +222,6 @@ void _soxr_fir_to_phase(double * * h, int * len, int * post_len, double phase)
     work[(begin + (phase > 50 ? *len - 1 - i : i) + work_len) & (work_len - 1)];
   *post_len = phase > 50 ? peak - begin : begin + *len - (peak + 1);
 
-  lsx_debug("nPI=%g peak-sum@%i=%g (val@%i=%g); len=%i post=%i (%g%%)",
-      pi_wraps[work_len >> 1] / M_PI, peak, peak_imp_sum, imp_peak,
-      work[imp_peak], *len, *post_len, 100 - 100. * *post_len / (*len - 1));
   free(pi_wraps), free(work);
 }
 
