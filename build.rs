@@ -7,15 +7,6 @@ fn main() {
         .file("soxr/filter.c")
         .file("soxr/fft4g32.c")
         .file("soxr/fft4g64.c")
-        .file("soxr/pffft-wrap.c")
-        // These are included by other C Files.
-        // SIMD!
-//.file("soxr/fft4g.c")
-//.file("soxr/pffft.c")
-//.file("soxr/cr-core.c")
-//.file("soxr/ui")
-
-
         .warnings(true)
         .extra_warnings(true)
         .flag("-Wall")

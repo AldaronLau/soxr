@@ -22,7 +22,7 @@ static void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) 
     *src0 = src;
 }
 
-static size_t /* clips */ _soxr_interleave_f(void * * dest0,
+static void _soxr_interleave_f(void * * dest0,
   float const * const * src, size_t n)
 {
     float * dest = *dest0;
@@ -32,7 +32,6 @@ static size_t /* clips */ _soxr_interleave_f(void * * dest0,
     dest = &dest[n];
 
     *dest0 = dest;
-    return 0;
 }
 
 typedef void sample_t; /* float or double */
@@ -64,21 +63,10 @@ struct soxr {
   control_block_t control_block;
 
   void * * channel_ptrs;
-  size_t clips;
   int flushing;
 };
 
 #include "filter.h"
-
-char const * soxr_engine(soxr_t p)
-{
-  return resampler_id();
-}
-
-size_t * soxr_num_clips(soxr_t p)
-{
-  return &p->clips;
-}
 
 soxr_error_t soxr_error(soxr_t p)
 {
@@ -98,13 +86,13 @@ extern control_block_t
 static void soxr_delete0(soxr_t p)
 {
     if (p->resampler)
-      resampler_close(p->resampler);
+        resampler_close(p->resampler);
     free(p->resampler);
 
-  free(p->channel_ptrs);
-  free(p->shared);
+    free(p->channel_ptrs);
+    free(p->shared);
 
-  memset(p, 0, sizeof(*p));
+    memset(p, 0, sizeof(*p));
 }
 
 soxr_t soxr_create(double input_rate, double output_rate) {

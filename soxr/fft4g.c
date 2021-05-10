@@ -282,7 +282,7 @@ Appendix :
 */
 
 
-#include "math-wrap.h"
+#include <math.h>
 #include "fft4g.h"
 
 #ifdef FFT4G_FLOAT
