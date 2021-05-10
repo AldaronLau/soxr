@@ -5,7 +5,6 @@ fn main() {
         .file("soxr/soxr.c")
         .file("soxr/dbesi0.c")
         .file("soxr/filter.c")
-        .file("soxr/data-io.c")
         .file("soxr/fft4g32.c")
         .file("soxr/fft4g64.c")
         .file("soxr/pffft-wrap.c")

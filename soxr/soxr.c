@@ -7,8 +7,40 @@
 #include <time.h>
 
 #include "soxr.h"
-#include "data-io.h"
 #include "internal.h"
+
+void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
+    printf("deinterlieva\n");
+
+    unsigned i;
+    size_t j;
+    float const * src = *src0;
+
+    memcpy(dest[0], src, n * sizeof(float));
+
+    src = &src[n];
+    
+    *src0 = src;
+}
+
+size_t /* clips */ _soxr_interleave_f(void * * dest0,
+  float const * const * src, size_t n)
+{
+    unsigned i;
+    size_t j;
+    float * dest = *dest0;
+
+    memcpy(dest, src[0], n * sizeof(float));
+
+    dest = &dest[n];
+
+    *dest0 = dest;
+    return 0;
+}
+
+
+
+
 
 char const * soxr_version(void)
 {
@@ -35,10 +67,6 @@ typedef fn_t control_block_t[10];
 
 typedef void * resampler_t; /* For one channel. */
 typedef void * resampler_shared_t; /* Between channels. */
-typedef void (* deinterleave_t)(sample_t * * dest,
-    void const * * src0, size_t n, unsigned ch);
-typedef size_t (* interleave_t)(void * * dest,
-    sample_t const * const * src, size_t, unsigned, unsigned long *);
 
 struct soxr {
   double io_ratio;
@@ -51,8 +79,6 @@ struct soxr {
   resampler_shared_t shared;
   resampler_t * resamplers;
   control_block_t control_block;
-  deinterleave_t deinterleave;
-  interleave_t interleave;
 
   void * * channel_ptrs;
   size_t clips;
@@ -99,8 +125,6 @@ soxr_t soxr_create(
 
     p->io_ratio = io_ratio;
 
-    p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
-    p->interleave = (interleave_t)_soxr_interleave_f;
     control_block = &_soxr_rate32_cb;
 
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
@@ -229,58 +253,44 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     p->input_fn = tmp.input_fn;
     p->input_fn_state = tmp.input_fn_state;
     memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
-    p->deinterleave = tmp.deinterleave;
-    p->interleave = tmp.interleave;
     return soxr_set_io_ratio(p, tmp.io_ratio, 0);
   }
   return "invalid soxr_t pointer";
 }
 
-
-
-static void soxr_input_1ch(soxr_t p, unsigned i, soxr_cbuf_t src, size_t len)
-{
-  sample_t * dest = resampler_input(p->resamplers[i], NULL, len);
-  (*p->deinterleave)(&dest, &src, len, 1);
-}
-
-
-
 static size_t soxr_input(soxr_t p, void const * in, size_t len)
 {
-  bool separated = false;
-  unsigned i;
-  if (!p || p->error) return 0;
-  if (!in && len) {p->error = "null input buffer pointer"; return 0;}
-  if (!len) {
-    p->flushing = true;
-    return 0;
-  }
-  if (separated)
-    for (i = 0; i < 1; ++i)
-      soxr_input_1ch(p, i, ((soxr_cbufs_t)in)[i], len);
-  else {
-    for (i = 0; i < 1; ++i)
-      p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
-    (*p->deinterleave)(
-        (sample_t **)p->channel_ptrs, &in, len, 1);
-  }
-  return len;
+    printf("EFI\n");
+
+    unsigned i;
+    if (!p || p->error) return 0;
+    if (!in && len) {p->error = "null input buffer pointer"; return 0;}
+    if (!len) {
+        p->flushing = true;
+        return 0;
+    }
+
+    for (i = 0; i < 1; ++i) {
+        p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
+    }
+
+    _soxr_deinterleave_f((sample_t **)p->channel_ptrs, &in, len);
+
+    return len;
 }
 
 
 
-static size_t soxr_output_1ch(soxr_t p, unsigned i, soxr_buf_t dest, size_t len, bool separated)
+static size_t soxr_output_1ch(soxr_t p, unsigned i, soxr_buf_t dest, size_t len)
 {
+  printf("YOYO\n");
+
   sample_t const * src;
   if (p->flushing)
     resampler_flush(p->resamplers[i]);
   resampler_process(p->resamplers[i], len);
   src = resampler_output(p->resamplers[i], NULL, &len);
-  if (separated)
-    p->clips += (p->interleave)(&dest, &src,
-      len, 1, 0);
-  else p->channel_ptrs[i] = (void /* const */ *)src;
+  p->channel_ptrs[i] = (void /* const */ *)src;
   return len;
 }
 
@@ -288,16 +298,17 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, soxr_buf_t dest, size_t len,
 
 static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
 {
+  printf("CZSF\n");
+  
   unsigned u;
   size_t done = 0;
-  bool separated = false;
 
-  for (u = 0; u < 1; ++u)
-    done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len, separated);
+  for (u = 0; u < 1; ++u) {
+    done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len);
+  }
 
-  if (!separated)
-    p->clips += (p->interleave)(&out, (sample_t const * const *)p->channel_ptrs,
-        done, 1, 0);
+  _soxr_interleave_f(&out, (sample_t const * const *)p->channel_ptrs, done);
+
   return done;
 }
 
