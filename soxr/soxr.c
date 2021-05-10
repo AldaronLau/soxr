@@ -20,30 +20,6 @@ void resampler_close(struct rate * p);
 void resampler_sizes(size_t * shared, size_t * channel);
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
-static void _soxr_deinterleave_f(float * * dest, void const * * src0, size_t n) {
-    printf("deinterlieva\n");
-
-    float const * src = *src0;
-
-    memcpy(dest[0], src, n * sizeof(float));
-
-    src = &src[n];
-    
-    *src0 = src;
-}
-
-static void _soxr_interleave_f(void * * dest0,
-  float const * const * src, size_t n)
-{
-    float * dest = *dest0;
-
-    memcpy(dest, src[0], n * sizeof(float));
-
-    dest = &dest[n];
-
-    *dest0 = dest;
-}
-
 typedef void (* fn_t)(void);
 
 typedef void * resampler_t; /* For one channel. */
@@ -89,24 +65,16 @@ static size_t soxr_input(soxr_t p, void const * in, size_t len)
 {
     printf("EFI\n");
 
-    unsigned i;
-    if (!p || p->error) return 0;
-    if (!in && len) {p->error = "null input buffer pointer"; return 0;}
     if (!len) {
         p->flushing = true;
         return 0;
     }
 
-    for (i = 0; i < 1; ++i) {
-        p->channel_ptrs[i] = resampler_input(p->resampler, NULL, len);
-    }
-
-    _soxr_deinterleave_f((float **)p->channel_ptrs, &in, len);
+    p->channel_ptrs[0] = resampler_input(p->resampler, NULL, len);
+    memcpy(p->channel_ptrs[0], in, len * sizeof(float));
 
     return len;
 }
-
-
 
 static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
 {
@@ -134,7 +102,7 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
     done = soxr_output_1ch(p, u, len);
   }
 
-  _soxr_interleave_f(&out, (float const * const *)p->channel_ptrs, done);
+    memcpy(out, (float const *)p->channel_ptrs[0], done * sizeof(float));
 
   return done;
 }
