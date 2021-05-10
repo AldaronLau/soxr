@@ -60,7 +60,7 @@ struct soxr {
   size_t max_ilen;
 
   resampler_shared_t shared;
-  resampler_t * resamplers;
+  resampler_t resampler;
   control_block_t control_block;
 
   void * * channel_ptrs;
@@ -97,14 +97,10 @@ extern control_block_t
 
 static void soxr_delete0(soxr_t p)
 {
-  unsigned i;
+    if (p->resampler)
+      resampler_close(p->resampler);
+    free(p->resampler);
 
-  if (p->resamplers) for (i = 0; i < 1; ++i) {
-    if (p->resamplers[i])
-      resampler_close(p->resamplers[i]);
-    free(p->resamplers[i]);
-  }
-  free(p->resamplers);
   free(p->channel_ptrs);
   free(p->shared);
 
@@ -131,11 +127,10 @@ soxr_t soxr_create(double input_rate, double output_rate) {
     resampler_sizes(&shared_size, &channel_size);
     p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
     p->shared = calloc(shared_size, 1);
-    p->resamplers = calloc(sizeof(*p->resamplers), 1);
-    p->resamplers[0] = calloc(channel_size, 1);
-    
+    p->resampler = calloc(channel_size, 1);
+
     resampler_create(
-        p->resamplers[0],
+        p->resampler,
         p->shared,
         p->io_ratio,
         1.0
@@ -146,8 +141,7 @@ soxr_t soxr_create(double input_rate, double output_rate) {
 
 double soxr_delay(soxr_t p)
 {
-  return
-    (p && !p->error && p->resamplers)? resampler_delay(p->resamplers[0]) : 0;
+  return (p && !p->error)? resampler_delay(p->resampler) : 0;
 }
 
 void soxr_delete(soxr_t p)
@@ -169,7 +163,7 @@ static size_t soxr_input(soxr_t p, void const * in, size_t len)
     }
 
     for (i = 0; i < 1; ++i) {
-        p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
+        p->channel_ptrs[i] = resampler_input(p->resampler, NULL, len);
     }
 
     _soxr_deinterleave_f((float **)p->channel_ptrs, &in, len);
@@ -185,9 +179,9 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
 
   sample_t const * src;
   if (p->flushing)
-    resampler_flush(p->resamplers[i]);
-  resampler_process(p->resamplers[i], len);
-  src = resampler_output(p->resamplers[i], NULL, &len);
+    resampler_flush(p->resampler);
+  resampler_process(p->resampler, len);
+  src = resampler_output(p->resampler, NULL, &len);
   p->channel_ptrs[i] = (void /* const */ *)src;
   return len;
 }
