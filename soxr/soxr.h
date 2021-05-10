@@ -41,7 +41,7 @@ soxr_t soxr_create(
 /* If not using an app-supplied input function, after creating a stream
  * resampler, repeatedly call: */
 
-soxr_error_t soxr_process(
+void soxr_process(
     soxr_t      resampler,      /* As returned by soxr_create. */
                             /* Input (to be resampled): */
     void const* in,             /* Input buffer(s); may be NULL (see below). */
@@ -55,17 +55,5 @@ soxr_error_t soxr_process(
     Note that no special meaning is associated with ilen or olen equal to
     zero.  End-of-input (i.e. no data is available nor shall be available)
     may be indicated by seting `in' to NULL.                                  */
-
-
-/* then repeatedly call: */
-
-size_t /*odone*/ soxr_output(/* Resample and output a block of data.*/
-    soxr_t resampler,            /* As returned by soxr_create. */
-    void* data,             /* App-supplied buffer(s) for resampled data.*/
-    size_t olen);                /* Amount of data to output; >= odone. */
-
-/* Common stream resampler operations: */
-
-#undef SOXR
 
 #endif

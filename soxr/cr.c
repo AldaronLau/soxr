@@ -487,34 +487,6 @@ STATIC void resampler_flush(rate_t * p)
   p->flushing = true;
 }
 
-STATIC void resampler_close(rate_t * p)
-{
-  if (p->stages) {
-    fn_t const * const RDFT_CB = p->core->rdft_cb;
-    rate_shared_t * shared = p->stages[0].shared;
-    int i;
-
-    for (i = 0; i <= p->num_stages; ++i) {
-      stage_t * s = &p->stages[i];
-      rdft_free(s->dft_scratch);
-      rdft_free(s->dft_out);
-      fifo_delete(&s->fifo);
-    }
-    if (shared) {
-      for (i = 0; i < 2; ++i) {
-        dft_filter_t * f= &shared->dft_filter[i];
-        rdft_free(f->coefs);
-        rdft_delete_setup(f->dft_forward_setup);
-        rdft_delete_setup(f->dft_backward_setup);
-      }
-      p->core->mem.free(shared->poly_fir_coefs);
-      memset(shared, 0, sizeof(*shared));
-    }
-    free(p->stages);
-    (void)RDFT_CB;
-  }
-}
-
 STATIC void resampler_sizes(size_t * shared, size_t * channel)
 {
   *shared = sizeof(rate_shared_t);

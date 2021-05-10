@@ -1,6 +1,4 @@
-use std::os::raw::{
-    c_void, c_char
-};
+use std::os::raw::{c_void};
 use std::thread;
 
 extern "C" {
@@ -21,7 +19,7 @@ extern "C" {
                                 /* Output (resampled): */
         out: *mut c_void,            /* Output buffer(s).*/
         olen: usize,           /* Output buf. length (samples per channel). */
-        odone: *mut usize) -> *const c_char;       /* To return actual # samples out (<= olen).
+        odone: *mut usize);       /* To return actual # samples out (<= olen).
 
         Note that no special meaning is associated with ilen or olen equal to
         zero.  End-of-input (i.e. no data is available nor shall be available)

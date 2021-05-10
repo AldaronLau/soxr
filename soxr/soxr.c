@@ -16,7 +16,6 @@ float* resampler_input(rate_t * p, float const * samples, size_t n);
 void resampler_process(struct rate * p, size_t olen);
 float const * resampler_output(struct rate * p, float * samples, size_t * n0);
 void resampler_flush(struct rate * p);
-void resampler_close(struct rate * p);
 void resampler_sizes(size_t * shared, size_t * channel);
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
@@ -27,7 +26,6 @@ typedef void * resampler_shared_t; /* Between channels. */
 
 struct soxr {
   double io_ratio;
-  soxr_error_t error;
 
   size_t max_ilen;
 
@@ -89,8 +87,6 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
   return len;
 }
 
-
-
 static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
 {
   printf("CZSF\n");
@@ -107,25 +103,14 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
   return done;
 }
 
+static size_t soxr_output(soxr_t p, void * out, size_t len0) {
+    size_t odone, odone0 = 0, olen = len0;
 
-
-size_t soxr_output(soxr_t p, void * out, size_t len0)
-{
-  size_t odone, odone0 = 0, olen = len0, idone;
-  bool was_flushing;
-
-  if (!p || p->error) return 0;
-  if (!out && len0) {p->error = "null output buffer pointer"; return 0;}
-
-  do {
     odone = soxr_output_no_callback(p, out, olen);
     odone0 += odone;
-    break;
-  } while (odone || idone || (!was_flushing && p->flushing));
-  return odone0;
+
+    return odone0;
 }
-
-
 
 static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen)
 {
@@ -133,14 +118,12 @@ static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen)
   return min(result, ilen);
 }
 
-soxr_error_t soxr_process(soxr_t p,
+void soxr_process(soxr_t p,
     void const * in , size_t ilen0, size_t * idone0,
     void       * out, size_t olen , size_t * odone0)
 {
   size_t ilen, idone, odone = 0;
   bool flush_requested = false;
-
-  if (!p) return "null pointer";
 
   if (!in) {
     flush_requested = true, ilen = ilen0 = 0;
@@ -159,7 +142,4 @@ soxr_error_t soxr_process(soxr_t p,
 
   if (idone0) *idone0 = idone;
   if (odone0) *odone0 = odone;
-  return p->error;
 }
-
-
