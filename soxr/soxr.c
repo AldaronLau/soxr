@@ -111,46 +111,10 @@ static void soxr_delete0(soxr_t p)
   memset(p, 0, sizeof(*p));
 }
 
-static void initialise(soxr_t p)
-{
-  unsigned i;
-  size_t shared_size, channel_size;
+soxr_t soxr_create(double input_rate, double output_rate) {
+    double io_ratio = input_rate / output_rate;
 
-  resampler_sizes(&shared_size, &channel_size);
-  p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
-  p->shared = calloc(shared_size, 1);
-  p->resamplers = calloc(sizeof(*p->resamplers), 1);
-
-  for (i = 0; i < 1; ++i) {
-    p->resamplers[i] = calloc(channel_size, 1);
-    
-    resampler_create(
-        p->resamplers[i],
-        p->shared,
-        p->io_ratio,
-        1.0);
-  }
-}
-
-static void soxr_set_io_ratio(soxr_t p, double io_ratio)
-{
-  unsigned i;
-  if (!p->channel_ptrs) {
-    p->io_ratio = io_ratio;
-    initialise(p);
-  }
-  if (p->control_block[8]) {
-    for (i = 0; i < 1; ++i)
-      resampler_set_io_ratio(p->resamplers[i], io_ratio, 0);
-  }
-}
-
-soxr_t soxr_create(
-  double input_rate, double output_rate)
-{
-  double io_ratio = output_rate!=0? input_rate!=0?
-    input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
-  soxr_t p = calloc(sizeof(*p), 1);
+    soxr_t p = calloc(sizeof(*p), 1);
 
     control_block_t * control_block;
 
@@ -160,9 +124,24 @@ soxr_t soxr_create(
 
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
 
-    soxr_set_io_ratio(p, io_ratio);
+    p->io_ratio = io_ratio;
 
-  return p;
+    size_t shared_size, channel_size;
+
+    resampler_sizes(&shared_size, &channel_size);
+    p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
+    p->shared = calloc(shared_size, 1);
+    p->resamplers = calloc(sizeof(*p->resamplers), 1);
+    p->resamplers[0] = calloc(channel_size, 1);
+    
+    resampler_create(
+        p->resamplers[0],
+        p->shared,
+        p->io_ratio,
+        1.0
+    );
+
+    return p;
 }
 
 double soxr_delay(soxr_t p)
