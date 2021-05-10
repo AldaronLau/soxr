@@ -33,26 +33,4 @@ void lsx_dummy(char const *, ...);
 #define lsx_debug if(0) lsx_dummy
 #define lsx_debug_more lsx_debug
 
-/* soxr_quality_spec_t.flags: */
-
-#define SOXR_ROLLOFF_LSR2Q     3u    /* Reserved for internal use. */
-#define SOXR_ROLLOFF_MASK      3u    /* For masking these bits. */
-#define SOXR_MAINTAIN_3DB_PT   4u    /* Reserved for internal use. */
-#define SOXR_PROMOTE_TO_LQ    64u    /* Reserved for internal use. */
-
-
-/* soxr_quality_spec recipe: */
-
-#define SOXR_PRECISIONQ         11   /* Quality specified by the precision parameter. */
-
-#define SOXR_PHASE_MASK         0x30 /* For masking these bits. */
-
-
-
-/* soxr_quality_spec flags: */
-
-#define RESET_ON_CLEAR   (1u<<31)
-
-
-
 #endif

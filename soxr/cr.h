@@ -155,7 +155,6 @@ char const * _soxr_init(
   rate_t * const p,                /* Per audio channel.                            */
   rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
-  soxr_quality_spec_t const * const q_spec,
   double multiplier,               /* Linear gain to apply during conversion.   1   */
   cr_core_t const * const core,
   core_flags_t const);

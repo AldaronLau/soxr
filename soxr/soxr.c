@@ -29,7 +29,7 @@ typedef fn_t control_block_t[10];
 #define resampler_close        (*(void (*)(void *))p->control_block[4])
 #define resampler_delay        (*(double (*)(void *))p->control_block[5])
 #define resampler_sizes        (*(void (*)(size_t * shared, size_t * channel))p->control_block[6])
-#define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, soxr_quality_spec_t * q_spec, double scale))p->control_block[7])
+#define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, double scale))p->control_block[7])
 #define resampler_set_io_ratio (*(void (*)(void *, double io_ratio, size_t len))p->control_block[8])
 #define resampler_id           (*(char const * (*)(void))p->control_block[9])
 
@@ -43,7 +43,6 @@ typedef size_t (* interleave_t)(soxr_datatype_t data_type, void * * dest,
 struct soxr {
   double io_ratio;
   soxr_error_t error;
-  soxr_quality_spec_t q_spec;
   soxr_io_spec_t io_spec;
 
   void * input_fn_state;
@@ -64,44 +63,15 @@ struct soxr {
 
 #include "filter.h"
 
-soxr_quality_spec_t soxr_quality_spec(void) {
-  soxr_quality_spec_t spec, * p = &spec;
-  unsigned quality = 4;
-  double rej;
-  memset(p, 0, sizeof(*p));
-
-  unsigned long flags = 1u << 31;
-  p->phase_response = 50.0;
-  p->stopband_begin = 1;
-  p->precision = 20;
-  rej = p->precision * linear_to_dB(2.);
-  p->flags = flags;
-
-    #define LOW_Q_BW0     (1385 / 2048.) /* 0.67625 rounded to be a FP exact. */
-    p->passband_end = quality == 1? LOW_Q_BW0 : 1 - .05 / lsx_to_3dB(rej);
-    if (quality <= 2)
-      p->flags &= ~SOXR_ROLLOFF_NONE, p->flags |= SOXR_ROLLOFF_MEDIUM;
-  
-  if (4 & SOXR_STEEP_FILTER)
-    p->passband_end = 1 - .01 / lsx_to_3dB(rej);
-  return spec;
-}
-
-
-
 char const * soxr_engine(soxr_t p)
 {
   return resampler_id();
 }
 
-
-
 size_t * soxr_num_clips(soxr_t p)
 {
   return &p->clips;
 }
-
-
 
 soxr_error_t soxr_error(soxr_t p)
 {
@@ -134,8 +104,7 @@ extern control_block_t
 soxr_t soxr_create(
   double input_rate, double output_rate,
   soxr_error_t * error0,
-  soxr_io_spec_t const * io_spec,
-  soxr_quality_spec_t const * q_spec)
+  soxr_io_spec_t const * io_spec)
 {
   double io_ratio = output_rate!=0? input_rate!=0?
     input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
@@ -151,15 +120,6 @@ soxr_t soxr_create(
   if (p) {
     control_block_t * control_block;
 
-    p->q_spec = q_spec? *q_spec : soxr_quality_spec();
-
-    if (q_spec) { /* Backwards compatibility with original API: */
-      if (p->q_spec.passband_end > 2)
-        p->q_spec.passband_end /= 100;
-      if (p->q_spec.stopband_begin > 2)
-        p->q_spec.stopband_begin = 2 - p->q_spec.stopband_begin / 100;
-    }
-
     p->io_ratio = io_ratio;
     if (io_spec)
       p->io_spec = *io_spec;
@@ -171,12 +131,10 @@ soxr_t soxr_create(
 
     p->seed = (unsigned long)time(0) ^ (unsigned long)(size_t)p;
 
-    if (1 || (p->q_spec.precision <= 20 && !(p->q_spec.flags & SOXR_DOUBLE_PRECISION))
-        ) {
-      p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
-      p->interleave = (interleave_t)_soxr_interleave_f;
-      control_block = &_soxr_rate32_cb;
-    }
+    p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
+    p->interleave = (interleave_t)_soxr_interleave_f;
+    control_block = &_soxr_rate32_cb;
+
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
 
     if (io_ratio != 0) {
@@ -257,7 +215,6 @@ static soxr_error_t initialise(soxr_t p)
         p->resamplers[i],
         p->shared,
         p->io_ratio,
-        &p->q_spec,
         p->io_spec.scale);
     if (error)
       return fatal_error(p, error);
@@ -302,14 +259,12 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     soxr_delete0(p);
     memset(p, 0, sizeof(*p));
     p->input_fn = tmp.input_fn;
-    p->q_spec = tmp.q_spec;
     p->io_spec = tmp.io_spec;
     p->input_fn_state = tmp.input_fn_state;
     memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
     p->deinterleave = tmp.deinterleave;
     p->interleave = tmp.interleave;
-    return (p->q_spec.flags & RESET_ON_CLEAR)?
-      soxr_set_io_ratio(p, tmp.io_ratio, 0) : 0;
+    return soxr_set_io_ratio(p, tmp.io_ratio, 0);
   }
   return "invalid soxr_t pointer";
 }

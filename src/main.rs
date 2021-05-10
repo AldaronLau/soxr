@@ -11,11 +11,10 @@ extern "C" {
         /* All following arguments are optional (may be set to NULL). */
         error: *mut *const c_char,   /* To report any error during creation. */
         spec: *const c_void,      /* To specify non-default I/O formats. */
-        quality_spec: *const c_void, /* To specify non-default resampling quality.*/
     ) -> *mut c_void;               
 /*
         Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
-        Default quality_spec is per soxr_quality_spec(SOXR_HQ, 0)*/
+*/
 
     /* If not using an app-supplied input function, after creating a stream
      * resampler, repeatedly call: */
@@ -46,7 +45,6 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
             hz_in,
             hz_out,
             std::ptr::null_mut(),
-            std::ptr::null(),
             std::ptr::null(),
         )
     };
@@ -142,11 +140,11 @@ fn main() {
 
     // Reading test....
     let song = std::fs::read("test.raw").expect("No test!");
-    assert_eq!(song, austra);
+    assert!(song == austra);
 
     // Reading check...
     let song = std::fs::read("check.raw").expect("No test!");
-    assert_eq!(song, shaed);
+    assert!(song == shaed);
 
 /*
     println!("Writing out...");

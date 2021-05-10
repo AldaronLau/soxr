@@ -30,22 +30,7 @@
   #include <stddef.h>
 #endif
 
-#if defined SOXR_DLL
-  #if defined soxr_EXPORTS
-    #define SOXR __declspec(dllexport)
-  #else
-    #define SOXR __declspec(dllimport)
-  #endif
-#elif defined SOXR_VISIBILITY && defined __GNUC__ && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 1)
-  #define SOXR __attribute__ ((visibility("default")))
-#else
-  #define SOXR
-#endif
-
 typedef struct soxr_io_spec soxr_io_spec_t;
-typedef struct soxr_quality_spec soxr_quality_spec_t;
-
-
 
 /* ---------------------------- API conventions --------------------------------
 
@@ -89,7 +74,7 @@ typedef void       * soxr_out_t;     /* Either a soxr_buf_t or soxr_bufs_t,
 
 /* --------------------------- API main functions --------------------------- */
 
-SOXR char const * soxr_version(void);  /* Query library version: "libsoxr-x.y.z" */
+char const * soxr_version(void);  /* Query library version: "libsoxr-x.y.z" */
 
 #define soxr_strerror(e)               /* Soxr counterpart to strerror. */     \
     ((e)?(e):"no error")
@@ -97,19 +82,17 @@ SOXR char const * soxr_version(void);  /* Query library version: "libsoxr-x.y.z"
 
 /* Create a stream resampler: */
 
-SOXR soxr_t soxr_create(
+soxr_t soxr_create(
     double      input_rate,      /* Input sample-rate. */
     double      output_rate,     /* Output sample-rate. */
         /* All following arguments are optional (may be set to NULL). */
     soxr_error_t *,              /* To report any error during creation. */
-    soxr_io_spec_t const *,      /* To specify non-default I/O formats. */
-    soxr_quality_spec_t const * /* To specify non-default resampling quality.*/
+    soxr_io_spec_t const *      /* To specify non-default I/O formats. */
     );
 
     /*
 
     Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
-    Default quality_spec is per soxr_quality_spec(SOXR_HQ, 0)
     
     */
 
@@ -118,7 +101,7 @@ SOXR soxr_t soxr_create(
 /* If not using an app-supplied input function, after creating a stream
  * resampler, repeatedly call: */
 
-SOXR soxr_error_t soxr_process(
+soxr_error_t soxr_process(
     soxr_t      resampler,      /* As returned by soxr_create. */
                             /* Input (to be resampled): */
     soxr_in_t   in,             /* Input buffer(s); may be NULL (see below). */
@@ -154,7 +137,7 @@ typedef size_t /* data_len */
 
 /* and be registered with a previously created stream resampler using: */
 
-SOXR soxr_error_t soxr_set_input_fn(/* Set (or reset) an input function.*/
+soxr_error_t soxr_set_input_fn(/* Set (or reset) an input function.*/
     soxr_t resampler,            /* As returned by soxr_create. */
     soxr_input_fn_t,             /* Function to supply data to be resampled.*/
     void * input_fn_state,       /* If needed by the input function. */
@@ -162,7 +145,7 @@ SOXR soxr_error_t soxr_set_input_fn(/* Set (or reset) an input function.*/
 
 /* then repeatedly call: */
 
-SOXR size_t /*odone*/ soxr_output(/* Resample and output a block of data.*/
+size_t /*odone*/ soxr_output(/* Resample and output a block of data.*/
     soxr_t resampler,            /* As returned by soxr_create. */
     soxr_out_t data,             /* App-supplied buffer(s) for resampled data.*/
     size_t olen);                /* Amount of data to output; >= odone. */
@@ -171,19 +154,19 @@ SOXR size_t /*odone*/ soxr_output(/* Resample and output a block of data.*/
 
 /* Common stream resampler operations: */
 
-SOXR soxr_error_t soxr_error(soxr_t);   /* Query error status. */
-SOXR size_t   * soxr_num_clips(soxr_t); /* Query int. clip counter (for R/W). */
-SOXR double     soxr_delay(soxr_t);  /* Query current delay in output samples.*/
-SOXR char const * soxr_engine(soxr_t);  /* Query resampling engine name. */
+soxr_error_t soxr_error(soxr_t);   /* Query error status. */
+size_t   * soxr_num_clips(soxr_t); /* Query int. clip counter (for R/W). */
+double     soxr_delay(soxr_t);  /* Query current delay in output samples.*/
+char const * soxr_engine(soxr_t);  /* Query resampling engine name. */
 
-SOXR soxr_error_t soxr_clear(soxr_t); /* Ready for fresh signal, same config. */
-SOXR void         soxr_delete(soxr_t);  /* Free resources. */
+soxr_error_t soxr_clear(soxr_t); /* Ready for fresh signal, same config. */
+void         soxr_delete(soxr_t);  /* Free resources. */
 
 
 /* For variable-rate resampling. See example # 5 for how to create a
  * variable-rate resampler and how to use this function. */
 
-SOXR soxr_error_t soxr_set_io_ratio(soxr_t, double io_ratio, size_t slew_len);
+soxr_error_t soxr_set_io_ratio(soxr_t, double io_ratio, size_t slew_len);
 
 
 
@@ -217,16 +200,6 @@ struct soxr_io_spec {                                            /* Typically */
 #define SOXR_TPDF              0     /* Applicable only if otype is INT16. */
 #define SOXR_NO_DITHER         8u    /* Disable the above. */
 
-
-
-struct soxr_quality_spec {                                       /* Typically */
-  double precision;         /* Conversion precision (in bits).           20   */
-  double phase_response;    /* 0=minimum, ... 50=linear, ... 100=maximum 50   */
-  double passband_end;      /* 0dB pt. bandwidth to preserve; nyquist=1  0.913*/
-  double stopband_begin;    /* Aliasing/imaging control; > passband_end   1   */
-  unsigned long flags;      /* Per the following #defines.                0   */
-};
-
 #define SOXR_ROLLOFF_SMALL     0u    /* <= 0.01 dB */
 #define SOXR_ROLLOFF_MEDIUM    1u    /* <= 0.35 dB */
 #define SOXR_ROLLOFF_NONE      2u    /* For Chebyshev bandwidth. */
@@ -249,8 +222,6 @@ struct soxr_quality_spec {                                       /* Typically */
 /* These functions allow setting of the most commonly-used structure
  * parameters, with other parameters being given default values.  The default
  * values may then be overridden, directly in the structure, if needed.  */
-
-SOXR soxr_quality_spec_t soxr_quality_spec();
 
                                   /* The 5 standard qualities found in SoX: */
 #define SOXR_QQ                 0   /* 'Quick' cubic interpolation. */
@@ -275,7 +246,7 @@ SOXR soxr_quality_spec_t soxr_quality_spec();
 
 #define SOXR_STEEP_FILTER       0x40
 
-SOXR soxr_io_spec_t soxr_io_spec(
+soxr_io_spec_t soxr_io_spec(
     soxr_datatype_t itype,
     soxr_datatype_t otype);
 
@@ -293,7 +264,7 @@ SOXR soxr_io_spec_t soxr_io_spec(
  * soxr_set_error(soxr, soxr_set_num_channels(soxr, num_channels));
  */
 
-SOXR soxr_error_t soxr_set_error(soxr_t, soxr_error_t);
+soxr_error_t soxr_set_error(soxr_t, soxr_error_t);
 
 
 #undef SOXR

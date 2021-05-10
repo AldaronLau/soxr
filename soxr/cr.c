@@ -258,11 +258,12 @@ static struct half_fir_info const * find_half_fir(
 
 #include "soxr.h"
 
+#include "stdio.h"
+
 STATIC char const * _soxr_init(
   rate_t * const p,             /* Per audio channel. */
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
-  soxr_quality_spec_t const * const q_spec,
   double multiplier,            /* Linear gain to apply during conversion. */
   cr_core_t const * const core,
   core_flags_t const core_flags)
@@ -270,13 +271,15 @@ STATIC char const * _soxr_init(
   size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(core_flags);
   double const tolerance = 1 + 1e-5;
 
-  double       bits = q_spec->precision;
-  rolloff_t const rolloff = (rolloff_t)(q_spec->flags & 3);
+  double bits = 20.0;
+  rolloff_t const rolloff = (rolloff_t)(0);
   int interpolator = -1;
-  double const Fp0 = q_spec->passband_end, Fs0 = q_spec->stopband_begin;
-  double const phase_response = q_spec->phase_response, tbw0 = Fs0-Fp0;
 
-  bool const maintain_3dB_pt = !!(q_spec->flags & SOXR_MAINTAIN_3DB_PT);
+  double const Fp0 = 0.913743653267622, Fs0 = 1.0;
+
+  double const phase_response = 50.0, tbw0 = Fs0-Fp0;
+
+  bool const maintain_3dB_pt = false;
   double tbw_tighten = 1, alpha;
   #define tighten(x) (Fs0-(Fs0-(x))*tbw_tighten)
 
@@ -284,8 +287,8 @@ STATIC char const * _soxr_init(
   double att = (bits1 + 1) * linear_to_dB(2.), attArb = att; /* +1: pass+stop */
   int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
   bool upsample = false, rational = false, iOpt = true;
-  bool lq_bits= (q_spec->flags & SOXR_PROMOTE_TO_LQ)? bits <= 16 : bits == 16;
-  bool lq_Fp0 = (q_spec->flags & SOXR_PROMOTE_TO_LQ)? Fp0<=lq_bw0 : Fp0==lq_bw0;
+  bool lq_bits = bits == 16;
+  bool lq_Fp0 = Fp0 == lq_bw0;
   int n = 0, i, mode = lq_bits && rolloff == rolloff_medium? io_ratio > 1 ||
     phase_response != 50 || !lq_Fp0 || Fs0 != 1 : ((int)ceil(bits1) - 6) / 4;
   struct half_fir_info const * half_fir_info;
@@ -444,22 +447,21 @@ STATIC char const * _soxr_init(
     s->n = num_coefs4;
     s->phase_bits = phase_bits;
     s->L = arbL;
-    s->use_hi_prec_clock =
-      mode>1 && (q_spec->flags & SOXR_HI_PREC_CLOCK) && !rational;
-    {
-      s->at.whole = (int64_t)(at * MULT32 + .5);
-      if (s->use_hi_prec_clock) {
+    s->use_hi_prec_clock = 0;
+
+    s->at.whole = (int64_t)(at * MULT32 + .5);
+    if (s->use_hi_prec_clock) {
         double M = arbM * MULT32;
         s->at.fix.ls.parts.ms = 0x80000000ul;
         s->step.whole = (int64_t)M;
         M -= (double)s->step.whole;
         M *= MULT32 * MULT32;
         s->step.fix.ls.all = (uint64_t)M;
-      } else {
+    } else {
         s->step.whole = (int64_t)(arbM * MULT32 + .5);
-      }
-      s->out_in_ratio = MULT32 * arbL / (double)s->step.whole;
     }
+    s->out_in_ratio = MULT32 * arbL / (double)s->step.whole;
+
     ++s;
   }
 
