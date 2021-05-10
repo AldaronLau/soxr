@@ -263,7 +263,6 @@ STATIC char const * _soxr_init(
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
   soxr_quality_spec_t const * const q_spec,
-  soxr_runtime_spec_t const * const r_spec,
   double multiplier,            /* Linear gain to apply during conversion. */
   cr_core_t const * const core,
   core_flags_t const core_flags)
@@ -273,7 +272,7 @@ STATIC char const * _soxr_init(
 
   double       bits = q_spec->precision;
   rolloff_t const rolloff = (rolloff_t)(q_spec->flags & 3);
-  int interpolator = (int)(r_spec->flags & 3) - 1;
+  int interpolator = -1;
   double const Fp0 = q_spec->passband_end, Fs0 = q_spec->stopband_begin;
   double const phase_response = q_spec->phase_response, tbw0 = Fs0-Fp0;
 
@@ -284,7 +283,7 @@ STATIC char const * _soxr_init(
   double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0, bits1 = min(bits,33);
   double att = (bits1 + 1) * linear_to_dB(2.), attArb = att; /* +1: pass+stop */
   int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
-  bool upsample=false, rational=false, iOpt=!(r_spec->flags&SOXR_NOSMALLINTOPT);
+  bool upsample = false, rational = false, iOpt = true;
   bool lq_bits= (q_spec->flags & SOXR_PROMOTE_TO_LQ)? bits <= 16 : bits == 16;
   bool lq_Fp0 = (q_spec->flags & SOXR_PROMOTE_TO_LQ)? Fp0<=lq_bw0 : Fp0==lq_bw0;
   int n = 0, i, mode = lq_bits && rolloff == rolloff_medium? io_ratio > 1 ||
@@ -309,7 +308,7 @@ STATIC char const * _soxr_init(
   p->io_ratio = io_ratio;
   if (bits!=0) while (!n++) {                            /* Determine stages: */
     int try, L, M, x, maxL = interpolator > 0? 1 : mode? 2048 :
-      (int)ceil(r_spec->coef_size_kbytes * 1000. / (U100_l * (int)sizeof_real));
+      (int)ceil(400 * 1000. / (U100_l * (int)sizeof_real));
     double d, epsilon = 0, frac;
     upsample = arbM < 1;
     for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
@@ -379,8 +378,8 @@ STATIC char const * _soxr_init(
     }
     Fn1 = preM? max(preL, preM) : arbM / arbL;
     dft_stage_init(0, tighten(Fp1), Fs1, Fn1, att, phase_response, s++, preL,
-        max(preM, 1), &multiplier, r_spec->log2_min_dft_size,
-        r_spec->log2_large_dft_size, core_flags, core->rdft_cb);
+        max(preM, 1), &multiplier, 10,
+        17, core_flags, core->rdft_cb);
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
 
@@ -426,7 +425,7 @@ STATIC char const * _soxr_init(
       order = i + (i && mode > 4);
       coefs_size = (size_t)(num_coefs4 * phases * (order+1)) * sizeof_real;
     } while (interpolator < 0 && i < 2 && f->interp[i+1].fn &&
-        coefs_size / 1000 > r_spec->coef_size_kbytes);
+        coefs_size / 1000 > 400);
 
     if (!s->shared->poly_fir_coefs) {
       int num_taps = num_coefs * phases - 1;
@@ -467,8 +466,8 @@ STATIC char const * _soxr_init(
   if (have_post_stage)
     dft_stage_init(1, tighten(Fp0 / (upsample? alpha : 1)), upsample? max(2 -
         Fs0 / alpha, 1) : Fs0, (double)max(postL, postM), att, phase_response,
-        s++, postL, postM, &multiplier, r_spec->log2_min_dft_size,
-        r_spec->log2_large_dft_size, core_flags, core->rdft_cb);
+        s++, postL, postM, &multiplier, 10,
+        17, core_flags, core->rdft_cb);
 
   lsx_debug("%g: >>%i %i/%i %i/%g %i/%i (%x)", 1/io_ratio,
       shr, preL, preM, arbL, arbM, postL, postM, core_flags);

@@ -48,14 +48,6 @@
 #define SOXR_PROMOTE_TO_LQ    64u    /* Reserved for internal use. */
 
 
-
-/* soxr_runtime_spec_t.flags: */
-
-#define SOXR_STRICT_BUFFERING  4u    /* Reserved for future use. */
-#define SOXR_NOSMALLINTOPT     8u    /* For test purposes only. */
-
-
-
 /* soxr_quality_spec recipe: */
 
 #define SOXR_PRECISIONQ         11   /* Quality specified by the precision parameter. */

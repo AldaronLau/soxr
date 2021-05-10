@@ -44,7 +44,6 @@
 
 typedef struct soxr_io_spec soxr_io_spec_t;
 typedef struct soxr_quality_spec soxr_quality_spec_t;
-typedef struct soxr_runtime_spec soxr_runtime_spec_t;
 
 
 
@@ -104,12 +103,13 @@ SOXR soxr_t soxr_create(
         /* All following arguments are optional (may be set to NULL). */
     soxr_error_t *,              /* To report any error during creation. */
     soxr_io_spec_t const *,      /* To specify non-default I/O formats. */
-    soxr_quality_spec_t const *, /* To specify non-default resampling quality.*/
-    soxr_runtime_spec_t const *);/* To specify non-default runtime resources.
+    soxr_quality_spec_t const * /* To specify non-default resampling quality.*/
+    );
+
+    /*
 
     Default io_spec      is per soxr_io_spec(SOXR_FLOAT32_I, SOXR_FLOAT32_I)
     Default quality_spec is per soxr_quality_spec(SOXR_HQ, 0)
-    Default runtime_spec is per soxr_runtime_spec(1)                          */
 
 
 
@@ -236,13 +236,6 @@ struct soxr_quality_spec {                                       /* Typically */
 
 
 
-struct soxr_runtime_spec {                                       /* Typically */
-  unsigned log2_min_dft_size;   /* For DFT efficiency. [8,15]           10    */
-  unsigned log2_large_dft_size; /* For DFT efficiency. [8,20]           17    */
-  unsigned coef_size_kbytes;    /* For SOXR_COEF_INTERP_AUTO (below).   400   */
-  void * e;                     /* Reserved for internal use.            0    */
-  unsigned long flags;          /* Per the following #defines.           0    */
-};
                                    /* For `irrational' ratios only: */
 #define SOXR_COEF_INTERP_AUTO  0u    /* Auto select coef. interpolation. */
 #define SOXR_COEF_INTERP_LOW   2u    /* Man. select: less CPU, more memory. */
@@ -283,17 +276,9 @@ SOXR soxr_quality_spec_t soxr_quality_spec(
 
 #define SOXR_STEEP_FILTER       0x40
 
-
-
-SOXR soxr_runtime_spec_t soxr_runtime_spec(void);
-
-
-
 SOXR soxr_io_spec_t soxr_io_spec(
     soxr_datatype_t itype,
     soxr_datatype_t otype);
-
-
 
 /* --------------------------- Advanced use only ---------------------------- */
 

@@ -29,7 +29,7 @@ typedef fn_t control_block_t[10];
 #define resampler_close        (*(void (*)(void *))p->control_block[4])
 #define resampler_delay        (*(double (*)(void *))p->control_block[5])
 #define resampler_sizes        (*(void (*)(size_t * shared, size_t * channel))p->control_block[6])
-#define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, soxr_quality_spec_t * q_spec, soxr_runtime_spec_t * r_spec, double scale))p->control_block[7])
+#define resampler_create       (*(char const * (*)(void * channel, void * shared, double io_ratio, soxr_quality_spec_t * q_spec, double scale))p->control_block[7])
 #define resampler_set_io_ratio (*(void (*)(void *, double io_ratio, size_t len))p->control_block[8])
 #define resampler_id           (*(char const * (*)(void))p->control_block[9])
 
@@ -45,7 +45,6 @@ struct soxr {
   soxr_error_t error;
   soxr_quality_spec_t q_spec;
   soxr_io_spec_t io_spec;
-  soxr_runtime_spec_t runtime_spec;
 
   void * input_fn_state;
   soxr_input_fn_t input_fn;
@@ -127,19 +126,6 @@ soxr_error_t soxr_error(soxr_t p)
   return p->error;
 }
 
-
-
-soxr_runtime_spec_t soxr_runtime_spec(void) {
-  soxr_runtime_spec_t spec, * p = &spec;
-  memset(p, 0, sizeof(*p));
-  p->log2_min_dft_size = 10;
-  p->log2_large_dft_size = 17;
-  p->coef_size_kbytes = 400;
-  return spec;
-}
-
-
-
 soxr_io_spec_t soxr_io_spec(
   soxr_datatype_t itype,
   soxr_datatype_t otype)
@@ -163,21 +149,6 @@ extern control_block_t
   _soxr_rate64s_cb,
   _soxr_vr32_cb;
 
-
-
-static void runtime_num(char const * env_name,
-    int min, int max, unsigned * field)
-{
-  char const * e = getenv(env_name);
-  if (e) {
-    int i = atoi(e);
-    if (i >= min && i <= max)
-      *field = (unsigned)i;
-  }
-}
-
-
-
 static void runtime_flag(char const * env_name,
     unsigned n_bits, unsigned n_shift, unsigned long * flags)
 {
@@ -190,14 +161,11 @@ static void runtime_flag(char const * env_name,
   }
 }
 
-
-
 soxr_t soxr_create(
   double input_rate, double output_rate,
   soxr_error_t * error0,
   soxr_io_spec_t const * io_spec,
-  soxr_quality_spec_t const * q_spec,
-  soxr_runtime_spec_t const * runtime_spec)
+  soxr_quality_spec_t const * q_spec)
 {
   double io_ratio = output_rate!=0? input_rate!=0?
     input_rate / output_rate : -1 : input_rate!=0? -1 : 0;
@@ -228,16 +196,6 @@ soxr_t soxr_create(
       p->io_spec = *io_spec;
     else
       p->io_spec.scale = 1;
-
-    p->runtime_spec = runtime_spec? *runtime_spec : soxr_runtime_spec();
-
-    runtime_num("SOXR_MIN_DFT_SIZE", 8, 15, &p->runtime_spec.log2_min_dft_size);
-    runtime_num("SOXR_LARGE_DFT_SIZE", 8, 20, &p->runtime_spec.log2_large_dft_size);
-    runtime_num("SOXR_COEFS_SIZE", 100, 800, &p->runtime_spec.coef_size_kbytes);
-    runtime_flag("SOXR_COEF_INTERP", 2, 0, &p->runtime_spec.flags);
-
-    runtime_flag("SOXR_STRICT_BUF", 1, 2, &p->runtime_spec.flags);
-    runtime_flag("SOXR_NOSMALLINTOPT", 1, 3, &p->runtime_spec.flags);
 
     p->io_spec.scale *= datatype_full_scale[p->io_spec.otype & 3] /
                         datatype_full_scale[p->io_spec.itype & 3];
@@ -331,7 +289,6 @@ static soxr_error_t initialise(soxr_t p)
         p->shared,
         p->io_ratio,
         &p->q_spec,
-        &p->runtime_spec,
         p->io_spec.scale);
     if (error)
       return fatal_error(p, error);
@@ -376,7 +333,6 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     soxr_delete0(p);
     memset(p, 0, sizeof(*p));
     p->input_fn = tmp.input_fn;
-    p->runtime_spec = tmp.runtime_spec;
     p->q_spec = tmp.q_spec;
     p->io_spec = tmp.io_spec;
     p->input_fn_state = tmp.input_fn_state;
@@ -488,27 +444,9 @@ size_t soxr_output(soxr_t p, void * out, size_t len0)
 
 static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen)
 {
-  size_t result;
-#if 0
-  if (p->runtime_spec.flags & SOXR_STRICT_BUFFERING)
-    result = rate_i_for_o(p->resamplers[0], olen);
-  else
-#endif
-    result = (size_t)ceil((double)olen * p->io_ratio);
+  size_t result = (size_t)ceil((double)olen * p->io_ratio);
   return min(result, ilen);
 }
-
-
-
-#if 0
-static size_t soxr_o_for_i(soxr_t p, size_t ilen, size_t olen)
-{
-  size_t result = (size_t)ceil((double)ilen / p->io_ratio);
-  return min(result, olen);
-}
-#endif
-
-
 
 soxr_error_t soxr_process(soxr_t p,
     void const * in , size_t ilen0, size_t * idone0,

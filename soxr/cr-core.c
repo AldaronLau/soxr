@@ -284,9 +284,9 @@ static cr_core_t const cr_core = {
 #include "soxr.h"
 
 static char const * rate_create(void * channel, void * shared, double io_ratio,
-    soxr_quality_spec_t * q_spec, soxr_runtime_spec_t * r_spec, double scale)
+    soxr_quality_spec_t * q_spec, double scale)
 {
-  return _soxr_init(channel, shared, io_ratio, q_spec, r_spec, scale,
+  return _soxr_init(channel, shared, io_ratio, q_spec, scale,
       &cr_core, CORE_TYPE);
 }
 
