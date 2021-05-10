@@ -15,10 +15,8 @@
 
 #include "cr.h"
 
-#define num_coefs4 ((core_flags&CORE_SIMD_POLY)? ((num_coefs+3)&~3) : num_coefs)
-
 #define coef_coef(C,T,x) \
-  C((T*)result, interp_order, num_coefs4, j, x, num_coefs4 - 1 - i)
+  C((T*)result, interp_order, num_coefs, j, x, num_coefs - 1 - i)
 
 #define STORE(C,T) { \
   if (interp_order > 2) coef_coef(C,T,3) = (T)d; \
@@ -30,7 +28,7 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     int num_phases, int interp_order, double multiplier,
     core_flags_t core_flags, alloc_t const * mem)
 {
-  int i, j, length = num_coefs4 * num_phases * (interp_order + 1);
+  int i, j, length = num_coefs * num_phases * (interp_order + 1);
   real * result = mem->calloc(1,(size_t)length << LOG2_SIZEOF_REAL(core_flags));
   double fm1 = coefs[0], f1 = 0, f2 = 0;
 
@@ -158,13 +156,13 @@ static int set_dft_length(int num_taps, int min, int large)
 static void dft_stage_init(
     unsigned instance, double Fp, double Fs, double Fn, double att,
     double phase_response, stage_t * p, int L, int M, double * multiplier,
-    unsigned min_dft_size, unsigned large_dft_size, core_flags_t core_flags,
+    unsigned min_dft_size, unsigned large_dft_size,
     fn_t const * RDFT_CB)
 {
   dft_filter_t * f = &p->shared->dft_filter[instance];
   int num_taps = 0, dft_length = f->dft_length, i, offset;
   bool f_domain_m = abs(3-M) == 1 && Fs <= 1;
-  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(core_flags);
+  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(0);
 
   if (!dft_length) {
     int k = phase_response == 50 && lsx_is_power_of_2(L) && Fn == L? L << 1 : 4;
@@ -208,7 +206,7 @@ static void dft_stage_init(
   }
   *multiplier = 1;
   p->out_in_ratio = (double)L / M;
-  p->core_flags = core_flags;
+  p->core_flags = 0;
   p->rdft_cb = RDFT_CB;
   p->fn = dft_stage_fn;
   p->preload = f->post_peak / L;
@@ -242,10 +240,9 @@ STATIC char const * _soxr_init(
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
   double multiplier,            /* Linear gain to apply during conversion. */
-  cr_core_t const * const core,
-  core_flags_t const core_flags)
+  cr_core_t const * const core)
 {
-  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(core_flags);
+  size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(0);
   double const tolerance = 1 + 1e-5;
 
   double bits = 20.0;
@@ -358,7 +355,7 @@ STATIC char const * _soxr_init(
     Fn1 = preM? max(preL, preM) : arbM / arbL;
     dft_stage_init(0, tighten(Fp1), Fs1, Fn1, att, phase_response, s++, preL,
         max(preM, 1), &multiplier, 10,
-        17, core_flags, core->rdft_cb);
+        17, core->rdft_cb);
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
 
@@ -401,7 +398,7 @@ STATIC char const * _soxr_init(
         phases <<= 1, arbL <<= 1, arbM *= 2;
       at = arbL * (s->phase0 = .5 * (num_coefs & 1));
       order = i + (i && mode > 4);
-      coefs_size = (size_t)(num_coefs4 * phases * (order+1)) * sizeof_real;
+      coefs_size = (size_t)(num_coefs * phases * (order+1)) * sizeof_real;
     } while (interpolator < 0 && i < 2 && f->interp[i+1].fn &&
         coefs_size / 1000 > 400);
 
@@ -410,14 +407,14 @@ STATIC char const * _soxr_init(
       double * coefs = _soxr_design_lpf(
           Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
-          coefs, num_coefs, phases, order, multiplier, core_flags, &core->mem);
+          coefs, num_coefs, phases, order, multiplier, 0, &core->mem);
       free(coefs);
     }
     multiplier = 1;
     s->fn = f1->fn;
-    s->pre_post = num_coefs4 - 1;
-    s->preload = ((num_coefs - 1) >> 1) + (num_coefs4 - num_coefs);
-    s->n = num_coefs4;
+    s->pre_post = num_coefs - 1;
+    s->preload = ((num_coefs - 1) >> 1) + (num_coefs - num_coefs);
+    s->n = num_coefs;
     s->phase_bits = phase_bits;
     s->L = arbL;
     s->use_hi_prec_clock = 0;
@@ -442,7 +439,7 @@ STATIC char const * _soxr_init(
     dft_stage_init(1, tighten(Fp0 / (upsample? alpha : 1)), upsample? max(2 -
         Fs0 / alpha, 1) : Fs0, (double)max(postL, postM), att, phase_response,
         s++, postL, postM, &multiplier, 10,
-        17, core_flags, core->rdft_cb);
+        17, core->rdft_cb);
 
   for (i = 0, s = p->stages; i < p->num_stages; ++i, ++s) {
     fifo_create(&s->fifo, (int)sizeof_real);

@@ -11,25 +11,21 @@
 #include "internal.h"
 #include "cr.h"
 
-typedef float sample_t;
-
-#define RDFT_CB    _soxr_rdft32_cb
-
-extern fn_t RDFT_CB[];
+extern fn_t _soxr_rdft32_cb[];
 
 static void cubic_stage_fn(stage_t * p, fifo_t * output_fifo)
 {
-  sample_t const * input = stage_read_p(p);
+  float const * input = stage_read_p(p);
   int num_in = min(stage_occupancy(p), p->input_size);
   int i, max_num_out = 1 + (int)(num_in * p->out_in_ratio);
-  sample_t * output = fifo_reserve(output_fifo, max_num_out);
+  float * output = fifo_reserve(output_fifo, max_num_out);
 
   for (i = 0; p->at.integer < num_in; ++i, p->at.whole += p->step.whole) {
-    sample_t const * s = input + p->at.integer;
+    float const * s = input + p->at.integer;
     double x = p->at.fraction * (1 / MULT32);
     double b = .5*(s[1]+s[-1])-*s, a = (1/6.)*(s[2]-s[1]+s[-1]-*s-4*b);
     double c = s[1]-*s-a-b;
-    output[i] = (sample_t)(p->mult * (((a*x + b)*x + c)*x + *s));
+    output[i] = (float)(p->mult * (((a*x + b)*x + c)*x + *s));
   }
   assert(max_num_out - i >= 0);
   fifo_trim_by(output_fifo, max_num_out - i);
@@ -84,7 +80,7 @@ static half_fir_info_t const half_firs[] = {
 
 
 
-#define COEFS (sample_t * __restrict)p->shared->poly_fir_coefs
+#define COEFS (float * __restrict)p->shared->poly_fir_coefs
 #define VAR_LENGTH p->n
 #define VAR_CONVOLVE(n) while (j < (n)) _
 #define VAR_POLY_PHASE_BITS p->phase_bits
@@ -185,7 +181,7 @@ static cr_core_t const cr_core = {
   half_firs, array_length(half_firs),
   0, 0,
   cubic_stage_fn,
-  poly_firs, RDFT_CB
+  poly_firs, _soxr_rdft32_cb
 };
 
 
@@ -196,8 +192,7 @@ static cr_core_t const cr_core = {
 static char const * rate_create(void * channel, void * shared, double io_ratio,
     double scale)
 {
-  return _soxr_init(channel, shared, io_ratio, scale,
-      &cr_core, 0);
+  return _soxr_init(channel, shared, io_ratio, scale, &cr_core);
 }
 
 

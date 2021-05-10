@@ -116,7 +116,7 @@ typedef struct stage {
 } stage_t;
 
 #define stage_occupancy(s) max(0, fifo_occupancy(&(s)->fifo) - (s)->pre_post)
-#define stage_read_p(s) ((sample_t *)fifo_read_ptr(&(s)->fifo) + (s)->pre)
+#define stage_read_p(s) ((float *)fifo_read_ptr(&(s)->fifo) + (s)->pre)
 
 #define lq_bw0  (1385/2048.) /* ~.67625, FP exact. */
 
@@ -156,8 +156,7 @@ char const * _soxr_init(
   rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
   double multiplier,               /* Linear gain to apply during conversion.   1   */
-  cr_core_t const * const core,
-  core_flags_t const);
+  cr_core_t const * const core);
 
 void _soxr_process(struct rate * p, size_t olen);
 real * _soxr_input(struct rate * p, real const * samples, size_t n);

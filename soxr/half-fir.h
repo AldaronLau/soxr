@@ -4,7 +4,7 @@
 /* Decimate by 2 using a FIR with odd length (LEN). */
 /* Input must be preceded and followed by LEN >> 1 samples. */
 
-#define COEFS ((sample_t const *)p->coefs)
+#define COEFS ((float const *)p->coefs)
 
 #if SIMD_SSE
   #define BEGINNING v4_t sum, q1, q2, t
@@ -26,7 +26,7 @@
 /* #elif SIMD_AVX; No good solution found. */
 /* #elif SIMD_NEON; No need: gcc -O3 does a good job by itself. */
 #else
-  #define BEGINNING sample_t sum = input[0] * .5f
+  #define BEGINNING float sum = input[0] * .5f
   #define ____ __ __
   #define __ _ _
   #define _ sum += (input[-(2*j +1)] + input[(2*j +1)]) * COEFS[j], ++j;
@@ -37,10 +37,10 @@
 
 static void FUNCTION_H(stage_t * p, fifo_t * output_fifo)
 {
-  sample_t const * __restrict input = stage_read_p(p);
+  float const * __restrict input = stage_read_p(p);
   int num_in = min(stage_occupancy(p), p->input_size);
   int i, num_out = (num_in + 1) >> 1;
-  sample_t * __restrict output = fifo_reserve(output_fifo, num_out);
+  float * __restrict output = fifo_reserve(output_fifo, num_out);
 
   for (i = 0; i < num_out; ++i, input += 2) {
     int j = 0;

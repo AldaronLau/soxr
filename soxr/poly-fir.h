@@ -45,7 +45,7 @@
   #define c (coef(COEFS, COEF_INTERP, N, phase, 2,j))
   #define d (coef(COEFS, COEF_INTERP, N, phase, 3,j))
 
-  #define BEGINNING sample_t sum = 0
+  #define BEGINNING float sum = 0
   #define END output[i] = sum
   #define CORE(n) core(n)
 #endif
@@ -55,10 +55,10 @@
 #define floatPrecCore(n) { \
   float_step_t at = p->at.flt; \
   for (i = 0; (int)at < num_in; ++i, at += p->step.flt) { \
-    sample_t const * const __restrict in = input + (int)at; \
+    float const * const __restrict in = input + (int)at; \
     float_step_t frac = at - (int)at; \
     int phase = (int)(frac * (1 << PHASE_BITS)); \
-    sample_t x = (sample_t)(frac * (1 << PHASE_BITS) - phase); \
+    float x = (float)(frac * (1 << PHASE_BITS) - phase); \
     int j = 0; \
     BEGINNING; CONVOLVE(n); END; \
   } \
@@ -72,11 +72,11 @@
   for (i = 0; at.integer < num_in; ++i, \
       at.fix.ls.all += p->step.fix.ls.all, \
       at.whole += p->step.whole + (at.fix.ls.all < p->step.fix.ls.all)) { \
-    sample_t const * const __restrict in = input + at.integer; \
+    float const * const __restrict in = input + at.integer; \
     uint32_t frac = at.fraction; \
     int phase = (int)(frac >> (32 - PHASE_BITS)); /* High-order bits */ \
     /* Low-order bits, scaled to [0,1): */ \
-    sample_t x = (sample_t)((frac << PHASE_BITS) * (1 / MULT32)); \
+    float x = (float)((frac << PHASE_BITS) * (1 / MULT32)); \
     int j = 0; \
     BEGINNING; CONVOLVE(n); END; \
   } \
@@ -89,11 +89,11 @@
 #define stdPrecCore(n) { \
   int64p_t at; at.all = p->at.whole; \
   for (i = 0; at.parts.ms < num_in; ++i, at.all += p->step.whole) { \
-    sample_t const * const __restrict in = input + at.parts.ms; \
+    float const * const __restrict in = input + at.parts.ms; \
     uint32_t const frac = at.parts.ls; \
     int phase = (int)(frac >> (32 - PHASE_BITS)); /* high-order bits */ \
     /* Low-order bits, scaled to [0,1): */ \
-    sample_t x = (sample_t)((frac << PHASE_BITS) * (1 / MULT32)); \
+    float x = (float)((frac << PHASE_BITS) * (1 / MULT32)); \
     int j = 0; \
     BEGINNING; CONVOLVE(n); END; \
   } \
@@ -106,10 +106,10 @@
 
 static void FUNCTION(stage_t * p, fifo_t * output_fifo)
 {
-  sample_t const * input = stage_read_p(p);
+  float const * input = stage_read_p(p);
   int num_in = min(stage_occupancy(p), p->input_size);
   int i, max_num_out = 1 + (int)(num_in * p->out_in_ratio);
-  sample_t * const __restrict output = fifo_reserve(output_fifo, max_num_out);
+  float * const __restrict output = fifo_reserve(output_fifo, max_num_out);
 
   CORE(N);
   assert(max_num_out - i >= 0);

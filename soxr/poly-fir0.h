@@ -14,8 +14,8 @@
   #define CORE(n) switch (n) {cc(2); cc(3); cc(4); cc(5); cc(6); default: core(n);}
 #else
   #define N FIR_LENGTH
-  #define BEGINNING sample_t sum = 0; \
-      sample_t const * const __restrict coefs = (sample_t *)COEFS + N * rem;
+  #define BEGINNING float sum = 0; \
+      float const * const __restrict coefs = (float *)COEFS + N * rem;
   #define _ sum += coefs[j]*at[j], ++j;
   #define END output[i] = sum
   #define CORE(n) core(n)
@@ -24,17 +24,17 @@
 #define core(n) \
   for (i = 0; at < num_in * p->L; ++i, at += step) { \
     int const div = at / p->L, rem = at % p->L; \
-    sample_t const * const __restrict at = input + div; \
+    float const * const __restrict at = input + div; \
     int j = 0; BEGINNING; CONVOLVE(n); END;}
 
 static void FUNCTION(stage_t * p, fifo_t * output_fifo)
 {
   int num_in = min(stage_occupancy(p), p->input_size);
   if (num_in) {
-    sample_t const * input = stage_read_p(p);
+    float const * input = stage_read_p(p);
     int at = p->at.integer, step = p->step.integer;
     int i, num_out = (num_in * p->L - at + step - 1) / step;
-    sample_t * __restrict output = fifo_reserve(output_fifo, num_out);
+    float * __restrict output = fifo_reserve(output_fifo, num_out);
 
     CORE(N);
     assert(i == num_out);
