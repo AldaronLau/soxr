@@ -11,6 +11,7 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
+// FIXME: Generics!
 /* Always need this, for _soxr_fir_to_phase. */
     #define DFT_FLOAT double
     #define DONE_WITH_FFT_CACHE done_with_fft_cache

@@ -101,7 +101,6 @@ SOXR char const * soxr_version(void);  /* Query library version: "libsoxr-x.y.z"
 SOXR soxr_t soxr_create(
     double      input_rate,      /* Input sample-rate. */
     double      output_rate,     /* Output sample-rate. */
-    unsigned    num_channels,    /* Number of channels to be used. */
         /* All following arguments are optional (may be set to NULL). */
     soxr_error_t *,              /* To report any error during creation. */
     soxr_io_spec_t const *,      /* To specify non-default I/O formats. */
@@ -177,24 +176,6 @@ SOXR char const * soxr_engine(soxr_t);  /* Query resampling engine name. */
 
 SOXR soxr_error_t soxr_clear(soxr_t); /* Ready for fresh signal, same config. */
 SOXR void         soxr_delete(soxr_t);  /* Free resources. */
-
-
-
-/* `Short-cut', single call to resample a (probably short) signal held entirely
- * in memory.  See soxr_create and soxr_process above for parameter details.
- * Note that unlike soxr_create however, the default quality spec. for
- * soxr_oneshot is per soxr_quality_spec(SOXR_LQ, 0). */
-
-SOXR soxr_error_t soxr_oneshot(
-    double         input_rate,
-    double         output_rate,
-    unsigned       num_channels,
-    soxr_in_t    in , size_t ilen, size_t * idone,
-    soxr_out_t   out, size_t olen, size_t * odone,
-    soxr_io_spec_t const *,
-    soxr_quality_spec_t const *,
-    soxr_runtime_spec_t const *);
-
 
 
 /* For variable-rate resampling. See example # 5 for how to create a
@@ -331,8 +312,6 @@ SOXR soxr_io_spec_t soxr_io_spec(
  */
 
 SOXR soxr_error_t soxr_set_error(soxr_t, soxr_error_t);
-SOXR soxr_error_t soxr_set_num_channels(soxr_t, unsigned);
-
 
 
 #undef SOXR

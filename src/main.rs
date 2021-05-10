@@ -1,5 +1,5 @@
 use std::os::raw::{
-    c_void, c_char, c_uint
+    c_void, c_char
 };
 use std::thread;
 
@@ -8,7 +8,6 @@ extern "C" {
     fn soxr_create(
         input_rate: f64,      /* Input sample-rate. */
         output_rate: f64,     /* Output sample-rate. */
-        num_channels: c_uint, /* Number of channels to be used. */
         /* All following arguments are optional (may be set to NULL). */
         error: *mut *const c_char,   /* To report any error during creation. */
         spec: *const c_void,      /* To specify non-default I/O formats. */
@@ -48,7 +47,6 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
         soxr_create(
             hz_in,
             hz_out,
-            1, // Always going to be one.
             std::ptr::null_mut(),
             std::ptr::null(),
             std::ptr::null(),

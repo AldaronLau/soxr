@@ -41,7 +41,6 @@ typedef size_t (* interleave_t)(soxr_datatype_t data_type, void * * dest,
     sample_t const * const * src, size_t, unsigned, unsigned long *);
 
 struct soxr {
-  unsigned num_channels;
   double io_ratio;
   soxr_error_t error;
   soxr_quality_spec_t q_spec;
@@ -197,7 +196,6 @@ static void runtime_flag(char const * env_name,
 
 soxr_t soxr_create(
   double input_rate, double output_rate,
-  unsigned num_channels,
   soxr_error_t * error0,
   soxr_io_spec_t const * io_spec,
   soxr_quality_spec_t const * q_spec,
@@ -228,7 +226,6 @@ soxr_t soxr_create(
     }
 
     p->io_ratio = io_ratio;
-    p->num_channels = num_channels;
     if (io_spec)
       p->io_spec = *io_spec;
     else
@@ -258,8 +255,9 @@ soxr_t soxr_create(
     }
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
 
-    if (p->num_channels && io_ratio!=0)
+    if (io_ratio != 0) {
       error = soxr_set_io_ratio(p, io_ratio, 0);
+    }
   }
   if (error)
     soxr_delete(p), p = 0;
@@ -285,7 +283,7 @@ static void soxr_delete0(soxr_t p)
 {
   unsigned i;
 
-  if (p->resamplers) for (i = 0; i < p->num_channels; ++i) {
+  if (p->resamplers) for (i = 0; i < 1; ++i) {
     if (p->resamplers[i])
       resampler_close(p->resamplers[i]);
     free(p->resamplers[i]);
@@ -321,13 +319,13 @@ static soxr_error_t initialise(soxr_t p)
   size_t shared_size, channel_size;
 
   resampler_sizes(&shared_size, &channel_size);
-  p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), p->num_channels);
+  p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
   p->shared = calloc(shared_size, 1);
-  p->resamplers = calloc(sizeof(*p->resamplers), p->num_channels);
+  p->resamplers = calloc(sizeof(*p->resamplers), 1);
   if (!p->shared || !p->channel_ptrs || !p->resamplers)
     return fatal_error(p, "malloc failed");
 
-  for (i = 0; i < p->num_channels; ++i) {
+  for (i = 0; i < 1; ++i) {
     soxr_error_t error;
     if (!(p->resamplers[i] = calloc(channel_size, 1)))
       return fatal_error(p, "malloc failed");
@@ -344,34 +342,19 @@ static soxr_error_t initialise(soxr_t p)
   return 0;
 }
 
-
-
-soxr_error_t soxr_set_num_channels(soxr_t p, unsigned num_channels)
-{
-  if (!p)                return "invalid soxr_t pointer";
-  if (num_channels == p->num_channels) return p->error;
-  if (!num_channels)     return "invalid # of channels";
-  if (p->resamplers)     return "# of channels can't be changed";
-  p->num_channels = num_channels;
-  return soxr_set_io_ratio(p, p->io_ratio, 0);
-}
-
-
-
 soxr_error_t soxr_set_io_ratio(soxr_t p, double io_ratio, size_t slew_len)
 {
   unsigned i;
   soxr_error_t error;
   if (!p)                 return "invalid soxr_t pointer";
   if ((error = p->error)) return error;
-  if (!p->num_channels)   return "must set # channels before O/I ratio";
   if (io_ratio <= 0)      return "I/O ratio out-of-range";
   if (!p->channel_ptrs) {
     p->io_ratio = io_ratio;
     return initialise(p);
   }
   if (p->control_block[8]) {
-    for (i = 0; !error && i < p->num_channels; ++i)
+    for (i = 0; !error && i < 1; ++i)
       resampler_set_io_ratio(p->resamplers[i], io_ratio, slew_len);
     return error;
   }
@@ -399,7 +382,6 @@ soxr_error_t soxr_clear(soxr_t p) /* TODO: this, properly. */
     p->runtime_spec = tmp.runtime_spec;
     p->q_spec = tmp.q_spec;
     p->io_spec = tmp.io_spec;
-    p->num_channels = tmp.num_channels;
     p->input_fn_state = tmp.input_fn_state;
     memcpy(p->control_block, tmp.control_block, sizeof(p->control_block));
     p->deinterleave = tmp.deinterleave;
@@ -431,13 +413,13 @@ static size_t soxr_input(soxr_t p, void const * in, size_t len)
     return 0;
   }
   if (separated)
-    for (i = 0; i < p->num_channels; ++i)
+    for (i = 0; i < 1; ++i)
       soxr_input_1ch(p, i, ((soxr_cbufs_t)in)[i], len);
   else {
-    for (i = 0; i < p->num_channels; ++i)
+    for (i = 0; i < 1; ++i)
       p->channel_ptrs[i] = resampler_input(p->resamplers[i], NULL, len);
     (*p->deinterleave)(
-        (sample_t **)p->channel_ptrs, p->io_spec.itype, &in, len, p->num_channels);
+        (sample_t **)p->channel_ptrs, p->io_spec.itype, &in, len, 1);
   }
   return len;
 }
@@ -467,21 +449,21 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
   bool separated = !!(p->io_spec.otype & SOXR_SPLIT);
 #if defined _OPENMP
   int i;
-  if (!p->runtime_spec.num_threads && p->num_channels > 1)
+  if (!p->runtime_spec.num_threads && 1 > 1)
 #pragma omp parallel for
-  for (i = 0; i < (int)p->num_channels; ++i) {
+  for (i = 0; i < (int)1; ++i) {
     size_t done1;
     done1 = soxr_output_1ch(p, (unsigned)i, ((soxr_bufs_t)out)[i], len, separated);
     if (!i)
       done = done1;
   } else
 #endif
-  for (u = 0; u < p->num_channels; ++u)
+  for (u = 0; u < 1; ++u)
     done = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], len, separated);
 
   if (!separated)
     p->clips += (p->interleave)(p->io_spec.otype, &out, (sample_t const * const *)p->channel_ptrs,
-        done, p->num_channels, (p->io_spec.flags & SOXR_NO_DITHER)? 0 : &p->seed);
+        done, 1, (p->io_spec.flags & SOXR_NO_DITHER)? 0 : &p->seed);
   return done;
 }
 
@@ -503,7 +485,7 @@ size_t soxr_output(soxr_t p, void * out, size_t len0)
     if (odone0 == len0 || !p->input_fn || p->flushing)
       break;
 
-    osize = soxr_datatype_size(p->io_spec.otype) * p->num_channels;
+    osize = soxr_datatype_size(p->io_spec.otype) * 1;
     out = (char *)out + osize * odone;
     olen -= odone;
     idone = p->input_fn(p->input_fn_state, &in, ilen);
@@ -568,9 +550,9 @@ soxr_error_t soxr_process(soxr_t p,
   else if (p->io_spec.itype & p->io_spec.otype & SOXR_SPLIT) { /* Both i & o */
 #if defined _OPENMP
     int i;
-    if (!p->runtime_spec.num_threads && p->num_channels > 1)
+    if (!p->runtime_spec.num_threads && 1 > 1)
 #pragma omp parallel for
-    for (i = 0; i < (int)p->num_channels; ++i) {
+    for (i = 0; i < (int)1; ++i) {
       size_t done;
       if (in)
         soxr_input_1ch(p, (unsigned)i, ((soxr_cbufs_t)in)[i], ilen);
@@ -579,9 +561,10 @@ soxr_error_t soxr_process(soxr_t p,
         odone = done;
     } else
 #endif
-    for (u = 0; u < p->num_channels; ++u) {
-      if (in)
+    for (u = 0; u < 1; ++u) {
+      if (in) {
         soxr_input_1ch(p, u, ((soxr_cbufs_t)in)[u], ilen);
+      }
       odone = soxr_output_1ch(p, u, ((soxr_bufs_t)out)[u], olen, true);
     }
     idone = ilen;
@@ -594,35 +577,6 @@ soxr_error_t soxr_process(soxr_t p,
   if (odone0) *odone0 = odone;
   return p->error;
 }
-
-
-
-soxr_error_t soxr_oneshot(
-    double irate, double orate,
-    unsigned num_channels,
-    void const * in , size_t ilen, size_t * idone,
-    void * out, size_t olen, size_t * odone,
-    soxr_io_spec_t const * io_spec,
-    soxr_quality_spec_t const * q_spec,
-    soxr_runtime_spec_t const * runtime_spec)
-{
-  soxr_t resampler;
-  soxr_error_t error = q_spec? q_spec->e : 0;
-  if (!error) {
-    soxr_quality_spec_t q_spec1;
-    if (!q_spec)
-      q_spec1 = soxr_quality_spec(SOXR_LQ, 0), q_spec = &q_spec1;
-    resampler = soxr_create(irate, orate, num_channels,
-        &error, io_spec, q_spec, runtime_spec);
-  }
-  if (!error) {
-    error = soxr_process(resampler, in, ~ilen, idone, out, olen, odone);
-    soxr_delete(resampler);
-  }
-  return error;
-}
-
-
 
 soxr_error_t soxr_set_error(soxr_t p, soxr_error_t error)
 {
