@@ -117,13 +117,6 @@ typedef struct stage {
 typedef enum {rolloff_small, rolloff_medium, rolloff_none} rolloff_t;
 
 typedef struct {
-  void * (* alloc)(size_t);
-  void * (* calloc)(size_t, size_t);
-  void (* free)(void *);
-} alloc_t;
-
-typedef struct {
-  alloc_t mem;
   half_fir_info_t  const * half_firs;
   size_t half_firs_len;
   half_fir_info_t  const * doub_firs;
@@ -134,6 +127,7 @@ typedef struct {
 } cr_core_t;
 
 typedef struct rate rate_t;
+
 struct rate {
   cr_core_t const * core;
   double     io_ratio;
@@ -141,7 +135,6 @@ struct rate {
   int        num_stages, flushing;
   stage_t    * stages;
 };
-
 
 #include "soxr.h"
 

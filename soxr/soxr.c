@@ -19,18 +19,13 @@ void resampler_flush(struct rate * p);
 void resampler_sizes(size_t * shared, size_t * channel);
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
-typedef void (* fn_t)(void);
-
-typedef void * resampler_t; /* For one channel. */
-typedef void * resampler_shared_t; /* Between channels. */
-
 struct soxr {
   double io_ratio;
 
   size_t max_ilen;
 
-  resampler_shared_t shared;
-  resampler_t resampler;
+  void* resampler; /* For one channel. */
+  void* shared; /* Between channels. */
 
   void * * channel_ptrs;
   int flushing;

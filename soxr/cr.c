@@ -26,10 +26,10 @@
 
 static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     int num_phases, int interp_order,
-    core_flags_t core_flags, alloc_t const * mem)
+    core_flags_t core_flags)
 {
   int i, j, length = num_coefs * num_phases * (interp_order + 1);
-  real * result = mem->calloc(1, (size_t) length << 2);
+  real * result = calloc(1, (size_t) length << 2);
   double fm1 = coefs[0], f1 = 0, f2 = 0;
 
   for (i = num_coefs - 1; i >= 0; --i)
@@ -395,7 +395,7 @@ STATIC char const * resampler_init(
       double * coefs = _soxr_design_lpf(
           Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
-          coefs, num_coefs, phases, order, 0, &core->mem);
+          coefs, num_coefs, phases, order, 0);
       free(coefs);
     }
     s->fn = f1->fn;

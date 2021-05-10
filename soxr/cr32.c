@@ -138,7 +138,6 @@ static poly_fir_t const poly_firs[] = {
 };
 
 static cr_core_t const cr_core = {
-  {malloc, calloc, free},
   half_firs, array_length(half_firs),
   0, 0,
   cubic_stage_fn,
