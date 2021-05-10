@@ -59,9 +59,6 @@ static real * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
 #undef STORE
 #undef coef_coef
 
-#define IS_FLOAT32 (1 || sizeof_real == sizeof(float))
-#define WITH_FLOAT64 0
-
 static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
 {
   real * output, * dft_out;
@@ -73,6 +70,7 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
   if (p->at.integer + p->L * num_in >= f->dft_length) {
     fn_t const * const RDFT_CB = p->rdft_cb;
     size_t const sizeof_real = sizeof(char) << LOG2_SIZEOF_REAL(p->core_flags);
+
     div_t divd = div(f->dft_length - overlap - p->at.integer + p->L - 1, p->L);
     real const * input = fifo_read_ptr(&p->fifo);
     fifo_read(&p->fifo, divd.quot, NULL);
@@ -85,18 +83,8 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
       int portion = f->dft_length / p->L;
       memcpy(dft_out, input, (unsigned)portion * sizeof_real);
       rdft_oforward(portion, f->dft_forward_setup, dft_out, p->dft_scratch);
-      if (IS_FLOAT32) {
+      {
 #define dft_out ((float *)dft_out)
-        for (i = portion + 2; i < (portion << 1); i += 2) /* Mirror image. */
-          dft_out[i] = dft_out[(portion << 1) - i],
-            dft_out[i+1] = -dft_out[(portion << 1) - i + 1];
-        dft_out[portion] = dft_out[1];
-        dft_out[portion + 1] = 0;
-        dft_out[1] = dft_out[0];
-#undef dft_out
-      }
-      else if (WITH_FLOAT64) {
-#define dft_out ((double *)dft_out)
         for (i = portion + 2; i < (portion << 1); i += 2) /* Mirror image. */
           dft_out[i] = dft_out[(portion << 1) - i],
             dft_out[i+1] = -dft_out[(portion << 1) - i + 1];
@@ -108,12 +96,8 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
 
       for (portion <<= 1; i < f->dft_length; i += portion, portion <<= 1) {
         memcpy((char *)dft_out + (size_t)i * sizeof_real, dft_out, (size_t)portion * sizeof_real);
-        if (IS_FLOAT32)
+
         #define dft_out ((float *)dft_out)
-          dft_out[i + 1] = 0;
-        #undef dft_out
-        else if (WITH_FLOAT64)
-        #define dft_out ((double *)dft_out)
           dft_out[i + 1] = 0;
         #undef dft_out
       }
@@ -124,12 +108,8 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
         memcpy(dft_out, input, (size_t)f->dft_length * sizeof_real);
       else {
         memset(dft_out, 0, (size_t)f->dft_length * sizeof_real);
-        if (IS_FLOAT32)
-          for (j = 0, i = p->at.integer; i < f->dft_length; ++j, i += p->L)
-            ((float *)dft_out)[i] = ((float *)input)[j];
-        else if (WITH_FLOAT64)
-          for (j = 0, i = p->at.integer; i < f->dft_length; ++j, i += p->L)
-            ((double *)dft_out)[i] = ((double *)input)[j];
+        for (j = 0, i = p->at.integer; i < f->dft_length; ++j, i += p->L)
+          ((float *)dft_out)[i] = ((float *)input)[j];
         p->at.integer = p->L - 1 - divd.rem;
       }
       if (p->step.integer > 0)
@@ -144,18 +124,10 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
       if ((p->core_flags & CORE_SIMD_DFT) && p->step.integer == 1)
         memcpy(output, dft_out, (size_t)f->dft_length * sizeof_real);
       if (p->step.integer != 1) {
-        if (IS_FLOAT32) {
-          for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
+        for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
               i += p->step.integer)
-          {
+        {
             ((float *)output)[j] = ((float *)dft_out)[i];
-          }
-        } else if (WITH_FLOAT64) {
-          for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
-              i += p->step.integer)
-          {
-            ((double *)output)[j] = ((double *)dft_out)[i];
-          }
         }
         p->remM = i - (f->dft_length - overlap);
         fifo_trim_by(output_fifo, f->dft_length - j);
@@ -208,10 +180,8 @@ static void dft_stage_init(
     f->coefs = rdft_calloc((size_t)dft_length, sizeof_real);
     offset = dft_length - num_taps + 1;
     m = (1. / dft_length) * rdft_multiplier() * L * *multiplier;
-    if (IS_FLOAT32) for (i = 0; i < num_taps; ++i)
+    for (i = 0; i < num_taps; ++i)
         ((float *)f->coefs)[(i + offset) & (dft_length - 1)] =(float)(h[i] * m);
-    else if (WITH_FLOAT64) for (i = 0; i < num_taps; ++i)
-        ((double *)f->coefs)[(i + offset) & (dft_length - 1)] = h[i] * m;
     free(h);
   }
 
