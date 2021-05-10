@@ -64,15 +64,7 @@ struct soxr {
   int flushing;
 };
 
-
-
-#if WITH_CR32 || WITH_CR32S
-  #include "filter.h"
-#else
-  #define lsx_to_3dB(x) ((x)/(x))
-#endif
-
-
+#include "filter.h"
 
 soxr_quality_spec_t soxr_quality_spec(unsigned long recipe, unsigned long flags)
 {
@@ -167,82 +159,6 @@ soxr_io_spec_t soxr_io_spec(
   return spec;
 }
 
-
-
-#if (WITH_CR32S && WITH_CR32)
-  #if defined __GNUC__ && defined __x86_64__
-    #define CPUID(type, eax_, ebx_, ecx_, edx_) \
-      __asm__ __volatile__ ( \
-        "cpuid \n\t" \
-        : "=a" (eax_), "=b" (ebx_), "=c" (ecx_), "=d" (edx_) \
-        : "a" (type), "c" (0));
-  #elif defined __GNUC__ && defined __i386__
-    #define CPUID(type, eax_, ebx_, ecx_, edx_) \
-      __asm__ __volatile__ ( \
-        "mov %%ebx, %%edi \n\t" \
-        "cpuid \n\t" \
-        "xchg %%edi, %%ebx \n\t" \
-        : "=a" (eax_), "=D" (ebx_), "=c" (ecx_), "=d" (edx_) \
-        : "a" (type), "c" (0));
-  #elif defined _M_X64 && defined _MSC_VER && _MSC_VER > 1500
-     void __cpuidex(int CPUInfo[4], int info_type, int ecxvalue);
-     #pragma intrinsic(__cpuidex)
-     #define CPUID(type, eax_, ebx_, ecx_, edx_) do { \
-       int regs[4]; \
-       __cpuidex(regs, type, 0); \
-       eax_ = regs[0], ebx_ = regs[1], ecx_ = regs[2], edx_ = regs[3]; \
-     } while(0)
-  #elif defined _M_X64 && defined _MSC_VER
-     void __cpuidex(int CPUInfo[4], int info_type);
-     #pragma intrinsic(__cpuidex)
-     #define CPUID(type, eax_, ebx_, ecx_, edx_) do { \
-       int regs[4]; \
-       __cpuidex(regs, type); \
-       eax_ = regs[0], ebx_ = regs[1], ecx_ = regs[2], edx_ = regs[3]; \
-     } while(0)
-  #elif defined _M_IX86 && defined _MSC_VER
-    #define CPUID(type, eax_, ebx_, ecx_, edx_) \
-      __asm pushad \
-      __asm mov eax, type \
-      __asm xor ecx, ecx \
-      __asm cpuid \
-      __asm mov eax_, eax \
-      __asm mov ebx_, ebx \
-      __asm mov ecx_, ecx \
-      __asm mov edx_, edx \
-      __asm popad
-  #endif
-#endif
-
-
-
-#if WITH_CR32S && WITH_CR32
-  static bool cpu_has_simd32(void)
-  {
-  #if defined __x86_64__ || defined _M_X64
-    return true;
-  #elif defined __i386__ || defined _M_IX86
-    enum {SSE = 1 << 25, SSE2 = 1 << 26};
-    unsigned eax_, ebx_, ecx_, edx_;
-    CPUID(1, eax_, ebx_, ecx_, edx_);
-    return (edx_ & (SSE|SSE2)) != 0;
-  #elif defined AV_CPU_FLAG_NEON
-    return !!(av_get_cpu_flags() & AV_CPU_FLAG_NEON);
-  #else
-    return false;
-  #endif
-  }
-
-  static bool should_use_simd32(void)
-  {
-    char const * e;
-    return ((e = getenv("SOXR_USE_SIMD"  )))? !!atoi(e) :
-           ((e = getenv("SOXR_USE_SIMD32")))? !!atoi(e) : cpu_has_simd32();
-  }
-#else
-  #define should_use_simd32() true
-#endif
-
 extern control_block_t
   _soxr_rate32_cb,
   _soxr_rate32s_cb,
@@ -334,27 +250,12 @@ soxr_t soxr_create(
 
     p->seed = (unsigned long)time(0) ^ (unsigned long)(size_t)p;
 
-#if WITH_CR32 || WITH_CR32S || WITH_VR32
-    if (0
-#if WITH_VR32
-        || ((!WITH_CR32 && !WITH_CR32S) || (p->q_spec.flags & SOXR_VR))
-#endif
-#if WITH_CR32 || WITH_CR32S
-        || 1 || (p->q_spec.precision <= 20 && !(p->q_spec.flags & SOXR_DOUBLE_PRECISION))
-#endif
+    if (1 || (p->q_spec.precision <= 20 && !(p->q_spec.flags & SOXR_DOUBLE_PRECISION))
         ) {
       p->deinterleave = (deinterleave_t)_soxr_deinterleave_f;
       p->interleave = (interleave_t)_soxr_interleave_f;
-      control_block =
-#if WITH_VR32
-          ((!WITH_CR32 && !WITH_CR32S) || (p->q_spec.flags & SOXR_VR))? &_soxr_vr32_cb :
-#endif
-#if WITH_CR32S
-          !WITH_CR32 || should_use_simd32()? &_soxr_rate32s_cb :
-#endif
-          &_soxr_rate32_cb;
+      control_block = &_soxr_rate32_cb;
     }
-#endif
     memcpy(&p->control_block, control_block, sizeof(p->control_block));
 
     if (p->num_channels && io_ratio!=0)

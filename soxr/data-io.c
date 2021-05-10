@@ -21,7 +21,6 @@
   *src0 = src; \
 } while (0)
 
-#if WITH_CR32 || WITH_CR32S || WITH_VR32
 void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
     soxr_datatype_t data_type, void const * * src0, size_t n, unsigned ch)
 {
@@ -35,7 +34,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
     default: break;
   }
 }
-#endif
 
 
 
@@ -49,7 +47,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
   #endif
 #endif
 
-#if WITH_CR32 || WITH_CR32S || WITH_VR32
 #define FLOATX float
 
 #define LSX_RINT_CLIP_2 lsx_rint32_clip_2_f
@@ -87,7 +84,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
 #include "rint-clip.h"
 
 #undef FLOATX
-#endif
 
 #if defined FE_INVALID && defined FPU_RINT32 && defined __STDC_VERSION__
   #if __STDC_VERSION__ >= 199901L
@@ -109,7 +105,6 @@ void _soxr_deinterleave_f(float * * dest, /* Round/clipping not needed here */
   return 0; \
 } while (0)
 
-#if WITH_CR32 || WITH_CR32S || WITH_VR32
 size_t /* clips */ _soxr_interleave_f(soxr_datatype_t data_type, void * * dest0,
   float const * const * src, size_t n, unsigned ch, unsigned long * seed)
 {
@@ -133,4 +128,3 @@ size_t /* clips */ _soxr_interleave_f(soxr_datatype_t data_type, void * * dest0,
   }
   return 0;
 }
-#endif

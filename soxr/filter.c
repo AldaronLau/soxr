@@ -11,46 +11,42 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-#if 1 /* Always need this, for _soxr_fir_to_phase. */
-#define DFT_FLOAT double
-#define DONE_WITH_FFT_CACHE done_with_fft_cache
-#define FFT_CACHE_CCRW fft_cache_ccrw
-#define FFT_LEN fft_len
-#define LSX_CDFT _soxr_cdft
-#define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache
-#define LSX_FFT_BR lsx_fft_br
-#define LSX_FFT_SC lsx_fft_sc
-#define LSX_INIT_FFT_CACHE _soxr_init_fft_cache
-#define LSX_RDFT _soxr_rdft
-#define LSX_SAFE_CDFT _soxr_safe_cdft
-#define LSX_SAFE_RDFT _soxr_safe_rdft
-#define UPDATE_FFT_CACHE update_fft_cache
-#include "fft4g_cache.h"
-#endif
+/* Always need this, for _soxr_fir_to_phase. */
+    #define DFT_FLOAT double
+    #define DONE_WITH_FFT_CACHE done_with_fft_cache
+    #define FFT_CACHE_CCRW fft_cache_ccrw
+    #define FFT_LEN fft_len
+    #define LSX_CDFT _soxr_cdft
+    #define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache
+    #define LSX_FFT_BR lsx_fft_br
+    #define LSX_FFT_SC lsx_fft_sc
+    #define LSX_INIT_FFT_CACHE _soxr_init_fft_cache
+    #define LSX_RDFT _soxr_rdft
+    #define LSX_SAFE_CDFT _soxr_safe_cdft
+    #define LSX_SAFE_RDFT _soxr_safe_rdft
+    #define UPDATE_FFT_CACHE update_fft_cache
+    #include "fft4g_cache.h"
 
-#if WITH_CR32
-#define DFT_FLOAT float
-#define DONE_WITH_FFT_CACHE done_with_fft_cache_f
-#define FFT_CACHE_CCRW fft_cache_ccrw_f
-#define FFT_LEN fft_len_f
-#define LSX_CDFT _soxr_cdft_f
-#define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache_f
-#define LSX_FFT_BR lsx_fft_br_f
-#define LSX_FFT_SC lsx_fft_sc_f
-#define LSX_INIT_FFT_CACHE _soxr_init_fft_cache_f
-#define LSX_RDFT _soxr_rdft_f
-#define LSX_SAFE_CDFT _soxr_safe_cdft_f
-#define LSX_SAFE_RDFT _soxr_safe_rdft_f
-#define UPDATE_FFT_CACHE update_fft_cache_f
-#include "fft4g_cache.h"
-#endif
 
-#if WITH_CR32
+    #define DFT_FLOAT float
+    #define DONE_WITH_FFT_CACHE done_with_fft_cache_f
+    #define FFT_CACHE_CCRW fft_cache_ccrw_f
+    #define FFT_LEN fft_len_f
+    #define LSX_CDFT _soxr_cdft_f
+    #define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache_f
+    #define LSX_FFT_BR lsx_fft_br_f
+    #define LSX_FFT_SC lsx_fft_sc_f
+    #define LSX_INIT_FFT_CACHE _soxr_init_fft_cache_f
+    #define LSX_RDFT _soxr_rdft_f
+    #define LSX_SAFE_CDFT _soxr_safe_cdft_f
+    #define LSX_SAFE_RDFT _soxr_safe_rdft_f
+    #define UPDATE_FFT_CACHE update_fft_cache_f
+    #include "fft4g_cache.h"
+
 #define DFT_FLOAT float
 #define ORDERED_CONVOLVE _soxr_ordered_convolve_f
 #define ORDERED_PARTIAL_CONVOLVE _soxr_ordered_partial_convolve_f
 #include "rdft.h"
-#endif
 
 double _soxr_kaiser_beta(double att, double tr_bw)
 {

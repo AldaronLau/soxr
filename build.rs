@@ -19,8 +19,5 @@ fn main() {
         .extra_warnings(false)
         .flag("-w")
         .define("HAVE_BIGENDIAN", Some("0"))
-        .define("WITH_CR32", Some("1"))
-        .define("WITH_CR32S", Some("0"))
-        .define("WITH_VR32", Some("0"))
         .compile("soxr");
 }

@@ -6,7 +6,6 @@
 #define FFT4G_FLOAT
 #include "fft4g.c"
 
-#if WITH_CR32
 #include "rdft_t.h"
 static void * null(void) {return 0;}
 static void forward (int length, void * setup, double * H) {_soxr_safe_rdft_f(length,  1, H); (void)setup;}
@@ -32,4 +31,3 @@ fn_t _soxr_rdft32_cb[] = {
   (fn_t)free,
   (fn_t)flags,
 };
-#endif
