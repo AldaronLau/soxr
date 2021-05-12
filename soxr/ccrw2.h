@@ -8,12 +8,4 @@
 
 #include "internal.h"
 
-typedef int ccrw2_t;
-#define ccrw2_become_reader(x) (void)(x)
-#define ccrw2_cease_reading(x) (void)(x)
-#define ccrw2_become_writer(x) (void)(x)
-#define ccrw2_cease_writing(x) (void)(x)
-#define ccrw2_init(x) (void)(x)
-#define ccrw2_clear(x) (void)(x)
-
 #endif

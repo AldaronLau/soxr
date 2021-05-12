@@ -234,22 +234,24 @@ STATIC char const * resampler_init(
   double const phase_response = 50.0, tbw0 = Fs0-Fp0;
 
   bool const maintain_3dB_pt = false;
-  double tbw_tighten = 1, alpha;
+  double tbw_tighten = 1.0;
   #define tighten(x) (Fs0-(Fs0-(x))*tbw_tighten)
 
-  double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0, bits1 = min(bits,33);
-  double att = (bits1 + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
+  double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0;
+  double att = (bits + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
   int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
   bool upsample = false, rational = false, iOpt = true;
   int n = 0;
   int i;
-  int mode = ((int)ceil(bits1) - 6) / 4;
+  int mode = ((int)ceil(bits) - 6) / 4;
   struct half_fir_info const * half_fir_info;
   stage_t * s;
 
   p->core = core;
   p->io_ratio = io_ratio;
   if (bits!=0) while (!n++) {                            /* Determine stages: */
+    printf("SDA LOOP\n");
+  
     int try, L, M, x, maxL = interpolator > 0? 1 : mode? 2048 :
       (int)ceil(400 * 1000. / (U100_l * (int)sizeof(float)));
     double d, epsilon = 0, frac;
@@ -277,8 +279,10 @@ STATIC char const * resampler_init(
     if (!mode && (!rational || !n))
       ++mode, n = 0;
   }
+  
+  printf("THIS = %d %d\n", preM, preL);
 
-  p->num_stages = shr + (preM  * preL  != 1) + (arbM  * arbL  != 1) + (postM * postL != 1);
+  p->num_stages = shr + (preM  * preL  != 1) + (arbM  * arbL  != 1);
 
   p->stages = calloc((size_t)p->num_stages + 1, sizeof(*p->stages));
 
@@ -289,7 +293,7 @@ STATIC char const * resampler_init(
   }
   p->stages[0].is_input = true;
 
-  alpha = postM / (io_ratio * (postL << 0));
+  double alpha = 1 / io_ratio;
 
   if ((n = p->num_stages) > 1) {                              /* Att. budget: */
     if ((arbM  * arbL  != 1))
@@ -307,7 +311,7 @@ STATIC char const * resampler_init(
   }
 
   if ((preM  * preL  != 1)) {
-    if (maintain_3dB_pt && (postM * postL != 1)) {    /* Trans. bands overlapping. */
+    if (maintain_3dB_pt && 0) {    /* Trans. bands overlapping. */
       double x = tbw0 * _soxr_inv_f_resp(-3., att);
       x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
       if (x > .035) {
@@ -396,13 +400,9 @@ STATIC char const * resampler_init(
     ++s;
   }
 
-  if ((postM * postL != 1))
-    dft_stage_init(1, tighten(Fp0 / (upsample? alpha : 1)), upsample? max(2 -
-        Fs0 / alpha, 1) : Fs0, (double)max(postL, postM), att, phase_response,
-        s++, postL, postM, 10,
-        17, core->rdft_cb);
-
-  for (i = 0, s = p->stages; i < p->num_stages; ++i, ++s) {
+  for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {
+    printf(" KI %d\n", i);
+  
     fifo_create(&s->fifo, (int)sizeof(float));
     memset(fifo_reserve(&s->fifo, s->preload), 0,
         sizeof(float) * (size_t)s->preload);

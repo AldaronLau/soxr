@@ -14,7 +14,6 @@
 static int * lsx_fft_br_f;
 static float * lsx_fft_sc_f;
 static int fft_len_f = -1;
-static ccrw2_t fft_cache_ccrw_f;
 
 void _soxr_init_fft_cache_f(void) {
   if (fft_len_f >= 0)
@@ -22,14 +21,12 @@ void _soxr_init_fft_cache_f(void) {
   assert(lsx_fft_br_f == NULL);
   assert(lsx_fft_sc_f == NULL);
   assert(fft_len_f == -1);
-  ccrw2_init(fft_cache_ccrw_f);
   fft_len_f = 0;
 }
 
 void _soxr_clear_fft_cache_f(void)
 {
   assert(fft_len_f >= 0);
-  ccrw2_clear(fft_cache_ccrw_f);
   free(lsx_fft_br_f);
   free(lsx_fft_sc_f);
   lsx_fft_sc_f = NULL;
@@ -37,14 +34,12 @@ void _soxr_clear_fft_cache_f(void)
   fft_len_f = -1;
 }
 
+// Returns true if writer, false if not.
 static bool update_fft_cache_f(int len) {
   _soxr_init_fft_cache_f();
   assert(lsx_is_power_of_2(len));
   assert(fft_len_f >= 0);
-  ccrw2_become_reader(fft_cache_ccrw_f);
   if (len > fft_len_f) {
-    ccrw2_cease_reading(fft_cache_ccrw_f);
-    ccrw2_become_writer(fft_cache_ccrw_f);
     if (len > fft_len_f) {
       int old_n = fft_len_f;
       fft_len_f = len;
@@ -56,36 +51,44 @@ static bool update_fft_cache_f(int len) {
       }
       return true;
     }
-    ccrw2_cease_writing(fft_cache_ccrw_f);
-    ccrw2_become_reader(fft_cache_ccrw_f);
   }
   return false;
 }
 
-static void done_with_fft_cache_f(bool is_writer)
-{
-  if (is_writer)
-    ccrw2_cease_writing(fft_cache_ccrw_f);
-  else ccrw2_cease_reading(fft_cache_ccrw_f);
+void _soxr_safe_cdft_f(int len, int type, float* d) {
+    update_fft_cache_f(len);
+    _soxr_cdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
 }
 
-void _soxr_safe_cdft_f(int len, int type, float * d)
-{
-  bool is_writer = update_fft_cache_f(len);
-  _soxr_cdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
-  done_with_fft_cache_f(is_writer);
-}
-
-void _soxr_safe_rdft_f(int len, int type, float * d) {
-    bool is_writer = update_fft_cache_f(len);
+void _soxr_safe_rdft_f(int len, int type, float* d) {
+    update_fft_cache_f(len);
     _soxr_rdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
-    done_with_fft_cache_f(is_writer);
 }
 
-#define DFT_FLOAT float
-#define ORDERED_CONVOLVE _soxr_ordered_convolve_f
-#define ORDERED_PARTIAL_CONVOLVE _soxr_ordered_partial_convolve_f
-#include "rdft.h"
+void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b)
+{
+  int i;
+  a[0] *= b[0];
+  a[1] *= b[1];
+  for (i = 2; i < n; i += 2) {
+    float tmp = a[i];
+    a[i  ] = b[i  ] * tmp - b[i+1] * a[i+1];
+    a[i+1] = b[i+1] * tmp + b[i  ] * a[i+1];
+  }
+  (void)not_used;
+}
+
+void _soxr_ordered_partial_convolve_f(int n, float * a, const float * b)
+{
+  int i;
+  a[0] *= b[0];
+  for (i = 2; i < n; i += 2) {
+    float tmp = a[i];
+    a[i  ] = b[i  ] * tmp - b[i+1] * a[i+1];
+    a[i+1] = b[i+1] * tmp + b[i  ] * a[i+1];
+  }
+  a[1] = b[i] * a[i] - b[i+1] * a[i+1];
+}
 
 double _soxr_kaiser_beta(double att, double tr_bw)
 {
