@@ -28,9 +28,9 @@ extern fn_t _soxr_rdft32_cb[];
 #include "half-fir.h"
 
 static half_fir_info_t const half_firs[] = {
-  { 7, half_fir_coefs_7, h7, 0, 120.65f },
-  { 8, half_fir_coefs_8, h8, 0, 136.51f },
-  { 9, half_fir_coefs_9, h9, 0, 152.32f },
+    { 7, half_fir_coefs_7, h7, 0, 120.65f },
+    { 8, half_fir_coefs_8, h8, 0, 136.51f },
+    { 9, half_fir_coefs_9, h9, 0, 152.32f },
 };
 
 #define COEFS (float * __restrict)p->shared->poly_fir_coefs
@@ -93,28 +93,28 @@ static half_fir_info_t const half_firs[] = {
 #include "poly-fir.h"
 
 static poly_fir_t const poly_firs[] = {
-  {-1, {{0, vpoly0}, { 7.2f, vpoly1}, {5.0f, vpoly2}}},
-  {-1, {{0, vpoly0}, { 9.4f, vpoly1}, {6.7f, vpoly2}}},
-  {-1, {{0, vpoly0}, {12.4f, vpoly1}, {7.8f, vpoly2}}},
-  {-1, {{0, vpoly0}, {13.6f, vpoly1}, {9.3f, vpoly2}}},
-  {-1, {{0, vpoly0}, {10.5f, vpoly2}, {8.4f, vpoly3}}},
-  {-1, {{0, vpoly0}, {11.85f,vpoly2}, {9.0f, vpoly3}}},
+    {-1, {{0, vpoly0}, { 7.2f, vpoly1}, {5.0f, vpoly2}}},
+    {-1, {{0, vpoly0}, { 9.4f, vpoly1}, {6.7f, vpoly2}}},
+    {-1, {{0, vpoly0}, {12.4f, vpoly1}, {7.8f, vpoly2}}},
+    {-1, {{0, vpoly0}, {13.6f, vpoly1}, {9.3f, vpoly2}}},
+    {-1, {{0, vpoly0}, {10.5f, vpoly2}, {8.4f, vpoly3}}},
+    {-1, {{0, vpoly0}, {11.85f,vpoly2}, {9.0f, vpoly3}}},
 
-  {-1, {{0, vpoly0}, { 8.0f, vpoly1}, {5.3f, vpoly2}}},
-  {-1, {{0, vpoly0}, { 8.6f, vpoly1}, {5.7f, vpoly2}}},
-  {-1, {{0, vpoly0}, {10.6f, vpoly1}, {6.75f,vpoly2}}},
-  {-1, {{0, vpoly0}, {12.6f, vpoly1}, {8.6f, vpoly2}}},
-  {-1, {{0, vpoly0}, { 9.6f, vpoly2}, {7.6f, vpoly3}}},
-  {-1, {{0, vpoly0}, {11.4f, vpoly2}, {8.65f,vpoly3}}},
+    {-1, {{0, vpoly0}, { 8.0f, vpoly1}, {5.3f, vpoly2}}},
+    {-1, {{0, vpoly0}, { 8.6f, vpoly1}, {5.7f, vpoly2}}},
+    {-1, {{0, vpoly0}, {10.6f, vpoly1}, {6.75f,vpoly2}}},
+    {-1, {{0, vpoly0}, {12.6f, vpoly1}, {8.6f, vpoly2}}},
+    {-1, {{0, vpoly0}, { 9.6f, vpoly2}, {7.6f, vpoly3}}},
+    {-1, {{0, vpoly0}, {11.4f, vpoly2}, {8.65f,vpoly3}}},
 
-  {10.62f, {{U100_l, U100_0}, {0, 0}, {0, 0}}},
-  {11.28f, {{u100_l, u100_0}, {8, u100_1}, {6, u100_2}}},
+    {10.62f, {{U100_l, U100_0}, {0, 0}, {0, 0}}},
+    {11.28f, {{u100_l, u100_0}, {8, u100_1}, {6, u100_2}}},
 
-  {-1, {{0, vpoly0}, {   9, vpoly1}, {  6, vpoly2}}},
-  {-1, {{0, vpoly0}, {  11, vpoly1}, {  7, vpoly2}}},
-  {-1, {{0, vpoly0}, {  13, vpoly1}, {  8, vpoly2}}},
-  {-1, {{0, vpoly0}, {  10, vpoly2}, {  8, vpoly3}}},
-  {-1, {{0, vpoly0}, {  12, vpoly2}, {  9, vpoly3}}},
+    {-1, {{0, vpoly0}, {   9, vpoly1}, {  6, vpoly2}}},
+    {-1, {{0, vpoly0}, {  11, vpoly1}, {  7, vpoly2}}},
+    {-1, {{0, vpoly0}, {  13, vpoly1}, {  8, vpoly2}}},
+    {-1, {{0, vpoly0}, {  10, vpoly2}, {  8, vpoly3}}},
+    {-1, {{0, vpoly0}, {  12, vpoly2}, {  9, vpoly3}}},
 };
 
 static cr_core_t const cr_core = {
@@ -123,6 +123,6 @@ static cr_core_t const cr_core = {
   poly_firs, _soxr_rdft32_cb
 };
 
-char const * resampler_create(void * channel, void * shared, double io_ratio) {
+char const* resampler_create(void * channel, void * shared, double io_ratio) {
   return resampler_init(channel, shared, io_ratio, &cr_core);
 }
