@@ -27,22 +27,7 @@
 #define END output[i] = sum
 #define CORE(n) core(n)
 
-
-
-#define floatPrecCore(n) { \
-  float_step_t at = p->at.flt; \
-  for (i = 0; (int)at < num_in; ++i, at += p->step.flt) { \
-    float const * const __restrict in = input + (int)at; \
-    float_step_t frac = at - (int)at; \
-    int phase = (int)(frac * (1 << PHASE_BITS)); \
-    float x = (float)(frac * (1 << PHASE_BITS) - phase); \
-    int j = 0; \
-    BEGINNING; CONVOLVE(n); END; \
-  } \
-  fifo_read(&p->fifo, (int)at, NULL); \
-  p->at.flt = at - (int)at; } /* Could round to 1 in some cirmcumstances. */
-
-#define stdPrecCore(n) { \
+#define core(n) { \
   int64p_t at; at.all = p->at.whole; \
   for (i = 0; at.parts.ms < num_in; ++i, at.all += p->step.whole) { \
     float const * const __restrict in = input + at.parts.ms; \
@@ -56,10 +41,6 @@
   fifo_read(&p->fifo, at.parts.ms, NULL); \
   p->at.whole = at.parts.ls; }
 
-#define SPCORE stdPrecCore
-
-#define core(n) SPCORE(n)
-
 static void FUNCTION(stage_t * p, fifo_t * output_fifo)
 {
   float const * input = stage_read_p(p);
@@ -71,8 +52,6 @@ static void FUNCTION(stage_t * p, fifo_t * output_fifo)
   assert(max_num_out - i >= 0);
   fifo_trim_by(output_fifo, max_num_out - i);
 }
-
-
 
 #undef _
 #undef a

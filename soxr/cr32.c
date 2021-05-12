@@ -13,26 +13,6 @@
 
 extern fn_t _soxr_rdft32_cb[];
 
-static void cubic_stage_fn(stage_t * p, fifo_t * output_fifo)
-{
-  float const * input = stage_read_p(p);
-  int num_in = min(stage_occupancy(p), p->input_size);
-  int i, max_num_out = 1 + (int)(num_in * p->out_in_ratio);
-  float * output = fifo_reserve(output_fifo, max_num_out);
-
-  for (i = 0; p->at.integer < num_in; ++i, p->at.whole += p->step.whole) {
-    float const * s = input + p->at.integer;
-    double x = p->at.fraction * (1 / MULT32);
-    double b = 0.5*(s[1]+s[-1])-*s, a = (1/6.0)*(s[2]-s[1]+s[-1]-*s-4*b);
-    double c = s[1]-*s-a-b;
-    output[i] = (float)(p->mult * (((a*x + b)*x + c)*x + *s));
-  }
-  assert(max_num_out - i >= 0);
-  fifo_trim_by(output_fifo, max_num_out - i);
-  fifo_read(&p->fifo, p->at.integer, NULL);
-  p->at.integer = 0;
-}
-
 #include "half-coefs.h"
 
 #define FUNCTION_H h7
@@ -140,7 +120,6 @@ static poly_fir_t const poly_firs[] = {
 static cr_core_t const cr_core = {
   half_firs, array_length(half_firs),
   0, 0,
-  cubic_stage_fn,
   poly_firs, _soxr_rdft32_cb
 };
 
