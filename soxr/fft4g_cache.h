@@ -61,13 +61,6 @@ static void DONE_WITH_FFT_CACHE(bool is_writer)
   else ccrw2_cease_reading(FFT_CACHE_CCRW);
 }
 
-void LSX_SAFE_RDFT(int len, int type, DFT_FLOAT * d)
-{
-  bool is_writer = UPDATE_FFT_CACHE(len);
-  LSX_RDFT(len, type, d, LSX_FFT_BR, LSX_FFT_SC);
-  DONE_WITH_FFT_CACHE(is_writer);
-}
-
 void LSX_SAFE_CDFT(int len, int type, DFT_FLOAT * d)
 {
   bool is_writer = UPDATE_FFT_CACHE(len);

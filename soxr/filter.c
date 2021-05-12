@@ -11,24 +11,6 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-// FIXME: Generics!
-/* Always need this, for _soxr_fir_to_phase. */
-    #define DFT_FLOAT double
-    #define DONE_WITH_FFT_CACHE done_with_fft_cache
-    #define FFT_CACHE_CCRW fft_cache_ccrw
-    #define FFT_LEN fft_len
-    #define LSX_CDFT _soxr_cdft
-    #define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache
-    #define LSX_FFT_BR lsx_fft_br
-    #define LSX_FFT_SC lsx_fft_sc
-    #define LSX_INIT_FFT_CACHE _soxr_init_fft_cache
-    #define LSX_RDFT _soxr_rdft
-    #define LSX_SAFE_CDFT _soxr_safe_cdft
-    #define LSX_SAFE_RDFT _soxr_safe_rdft
-    #define UPDATE_FFT_CACHE update_fft_cache
-    #include "fft4g_cache.h"
-
-
     #define DFT_FLOAT float
     #define DONE_WITH_FFT_CACHE done_with_fft_cache_f
     #define FFT_CACHE_CCRW fft_cache_ccrw_f
@@ -43,6 +25,12 @@
     #define LSX_SAFE_RDFT _soxr_safe_rdft_f
     #define UPDATE_FFT_CACHE update_fft_cache_f
     #include "fft4g_cache.h"
+
+void _soxr_safe_rdft_f(int len, int type, float * d) {
+    bool is_writer = update_fft_cache_f(len);
+    _soxr_rdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+    done_with_fft_cache_f(is_writer);
+}
 
 #define DFT_FLOAT float
 #define ORDERED_CONVOLVE _soxr_ordered_convolve_f
@@ -125,109 +113,17 @@ double * _soxr_design_lpf(
   return Fn < 0? 0 : _soxr_make_lpf(*num_taps, Fc, beta, rho, (double)phases);
 }
 
-static double safe_log(double x)
-{
-  assert(x >= 0);
-  if (x!=0)
-    return log(x);
-  return -26;
+static double sinePhi(double x) {
+    return ((2.0517e-07*x-1.1303e-04)*x+.023154)*x+.55924;
 }
 
-void _soxr_fir_to_phase(double * * h, int * len, int * post_len, double phase)
-{
-  double * pi_wraps, * work, phase1 = (phase > 50 ? 100 - phase : phase) / 50;
-  int i, work_len, begin, end, imp_peak = 0, peak = 0;
-  double imp_sum = 0, peak_imp_sum = 0;
-  double prev_angle2 = 0, cum_2pi = 0, prev_angle1 = 0, cum_1pi = 0;
-
-  for (i = *len, work_len = 2 * 2 * 8; i > 1; work_len <<= 1, i >>= 1);
-
-  work = calloc((size_t)work_len + 2, sizeof(*work)); /* +2: (UN)PACK */
-  pi_wraps = malloc((((size_t)work_len + 2) / 2) * sizeof(*pi_wraps));
-
-  memcpy(work, *h, (size_t)*len * sizeof(*work));
-  _soxr_safe_rdft(work_len, 1, work); /* Cepstral: */
-  LSX_UNPACK(work, work_len);
-
-  for (i = 0; i <= work_len; i += 2) {
-    double angle = atan2(work[i + 1], work[i]);
-    double detect = 2 * M_PI;
-    double delta = angle - prev_angle2;
-    double adjust = detect * ((delta < -detect * .7) - (delta > detect * .7));
-    prev_angle2 = angle;
-    cum_2pi += adjust;
-    angle += cum_2pi;
-    detect = M_PI;
-    delta = angle - prev_angle1;
-    adjust = detect * ((delta < -detect * .7) - (delta > detect * .7));
-    prev_angle1 = angle;
-    cum_1pi += fabs(adjust); /* fabs for when 2pi and 1pi have combined */
-    pi_wraps[i >> 1] = cum_1pi;
-
-    work[i] = safe_log(sqrt(sqr(work[i]) + sqr(work[i + 1])));
-    work[i + 1] = 0;
-  }
-  LSX_PACK(work, work_len);
-  _soxr_safe_rdft(work_len, -1, work);
-  for (i = 0; i < work_len; ++i) work[i] *= 2. / work_len;
-
-  for (i = 1; i < work_len / 2; ++i) { /* Window to reject acausal components */
-    work[i] *= 2;
-    work[i + work_len / 2] = 0;
-  }
-  _soxr_safe_rdft(work_len, 1, work);
-
-  for (i = 2; i < work_len; i += 2) /* Interpolate between linear & min phase */
-    work[i + 1] = phase1 * i / work_len * pi_wraps[work_len >> 1] +
-        (1 - phase1) * (work[i + 1] + pi_wraps[i >> 1]) - pi_wraps[i >> 1];
-
-  work[0] = exp(work[0]), work[1] = exp(work[1]);
-  for (i = 2; i < work_len; i += 2) {
-    double x = exp(work[i]);
-    work[i    ] = x * cos(work[i + 1]);
-    work[i + 1] = x * sin(work[i + 1]);
-  }
-
-  _soxr_safe_rdft(work_len, -1, work);
-  for (i = 0; i < work_len; ++i) work[i] *= 2. / work_len;
-
-  /* Find peak pos. */
-  for (i = 0; i <= (int)(pi_wraps[work_len >> 1] / M_PI + .5); ++i) {
-    imp_sum += work[i];
-    if (fabs(imp_sum) > fabs(peak_imp_sum)) {
-      peak_imp_sum = imp_sum;
-      peak = i;
-    }
-    if (work[i] > work[imp_peak]) /* For debug check only */
-      imp_peak = i;
-  }
-  while (peak && fabs(work[peak-1]) > fabs(work[peak]) && work[peak-1] * work[peak] > 0)
-    --peak;
-
-  if (phase1==0)
-    begin = 0;
-  else if (phase1 == 1)
-    begin = peak - *len / 2;
-  else {
-    begin = (int)((.997 - (2 - phase1) * .22) * *len + .5);
-    end   = (int)((.997 + (0 - phase1) * .22) * *len + .5);
-    begin = peak - (begin & ~3);
-    end   = peak + 1 + ((end + 3) & ~3);
-    *len = end - begin;
-    *h = realloc(*h, (size_t)*len * sizeof(**h));
-  }
-  for (i = 0; i < *len; ++i) (*h)[i] =
-    work[(begin + (phase > 50 ? *len - 1 - i : i) + work_len) & (work_len - 1)];
-  *post_len = phase > 50 ? peak - begin : begin + *len - (peak + 1);
-
-  free(pi_wraps), free(work);
+static double sinePsi(double x) {
+    return ((9.0667e-08*x-5.6114e-05)*x+.013658)*x+1.0977;
 }
 
-static double sinePhi(double x) {return ((2.0517e-07*x-1.1303e-04)*x+.023154)*x+.55924;}
-
-static double sinePsi(double x) {return ((9.0667e-08*x-5.6114e-05)*x+.013658)*x+1.0977;}
-
-static double sinePow(double x) {return log(0.5) / log(sin(x * 0.5));}
+static double sinePow(double x) {
+    return log(0.5) / log(sin(x * 0.5));
+}
 
 double _soxr_f_resp(double t, double a) {
   double x;

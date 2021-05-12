@@ -168,11 +168,7 @@ static void dft_stage_init(
     int k = phase_response == 50 && lsx_is_power_of_2(L) && Fn == L? L << 1 : 4;
     double m, * h = _soxr_design_lpf(Fp, Fs, Fn, att, &num_taps, -k, -1.);
 
-    if (phase_response != 50) {
-        _soxr_fir_to_phase(&h, &num_taps, &f->post_peak, phase_response);
-    } else {
-        f->post_peak = num_taps / 2;
-    }
+    f->post_peak = num_taps / 2;
 
     dft_length = set_dft_length(num_taps, (int)min_dft_size, (int)large_dft_size);
     f->coefs = rdft_calloc((size_t)dft_length, sizeof_real);

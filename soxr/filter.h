@@ -32,9 +32,6 @@ double * _soxr_design_lpf(
     int k,          /* >0: number of phases; <0: num_taps = 1 (mod -k) */
     double beta);   /* <0: value will be estimated */
 
-void _soxr_fir_to_phase(double * * h, int * len,
-    int * post_len, double phase0);
-
 double _soxr_f_resp(double t, double a);
 double _soxr_inv_f_resp(double drop, double a);
 #define lsx_to_3dB(a) (1 - _soxr_inv_f_resp(-3., a))
