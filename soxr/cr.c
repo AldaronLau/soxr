@@ -227,7 +227,6 @@ STATIC char const * resampler_init(
 {
   double bits = 20.0;
   rolloff_t const rolloff = (rolloff_t)(0);
-  int interpolator = -1;
 
   double const Fp0 = 0.913743653267622, Fs0 = 1.0;
 
@@ -252,7 +251,7 @@ STATIC char const * resampler_init(
   if (bits!=0) while (!n++) {                            /* Determine stages: */
     printf("SDA LOOP\n");
   
-    int try, L, M, x, maxL = interpolator > 0? 1 : mode? 2048 :
+    int try, L, M, x, maxL = -1 > 0? 1 : mode? 2048 :
       (int)ceil(400 * 1000. / (U100_l * (int)sizeof(float)));
     double d, epsilon = 0, frac;
     upsample = arbM < 1;
@@ -324,15 +323,9 @@ STATIC char const * resampler_init(
         17, core->rdft_cb);
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
-
-  if (bits==0 && (arbM  * arbL  != 1)) {                /* `Quick' cubic arb stage: */
-    s->fn = core->cubic_stage_fn;
-    s->mult = 1.0;
-    s->step.whole = (int64_t)(arbM * MULT32 + .5);
-    s->pre_post = max(3, s->step.integer);
-    s->preload = s->pre = 1;
-    s->out_in_ratio = MULT32 / (double)s->step.whole;
-  } else if ((arbM  * arbL  != 1)) {                     /* Higher quality arb stage: */
+            
+    /* Higher quality arb stage: */
+    printf("YYYYYYYYO!\n");
     static const float rolloffs[] = {-.01f, -.3f, 0, -.103f};
     poly_fir_t const * f = &core->poly_firs[6*(upsample+!!preM)+mode-!upsample];
     int order, num_coefs = (int)f->interp[0].scalar, phase_bits, phases;
@@ -347,7 +340,7 @@ STATIC char const * resampler_init(
     if (mode)
       Fp = Fs - (Fs - Fp) / (1 - _soxr_inv_f_resp(rolloffs[rolloff], attArb));
 
-    i = (interpolator < 0? !rational : max(interpolator, !rational)) - 1;
+    i = (-1 < 0? !rational : !rational) - 1;
     do {
       f1 = &f->interp[++i];
       assert(f1->fn);
@@ -365,8 +358,7 @@ STATIC char const * resampler_init(
       at = arbL * (s->phase0 = .5 * (num_coefs & 1));
       order = i + (i && mode > 4);
       coefs_size = (size_t)(num_coefs * phases * (order+1)) * sizeof(float);
-    } while (interpolator < 0 && i < 2 && f->interp[i+1].fn &&
-        coefs_size / 1000 > 400);
+    } while (i < 2 && f->interp[i+1].fn && coefs_size / 1000 > 400);
 
     if (!s->shared->poly_fir_coefs) {
       int num_taps = num_coefs * phases - 1;
@@ -382,23 +374,11 @@ STATIC char const * resampler_init(
     s->n = num_coefs;
     s->phase_bits = phase_bits;
     s->L = arbL;
-    s->use_hi_prec_clock = 0;
 
     s->at.whole = (int64_t)(at * MULT32 + .5);
-    if (s->use_hi_prec_clock) {
-        double M = arbM * MULT32;
-        s->at.fix.ls.parts.ms = 0x80000000ul;
-        s->step.whole = (int64_t)M;
-        M -= (double)s->step.whole;
-        M *= MULT32 * MULT32;
-        s->step.fix.ls.all = (uint64_t)M;
-    } else {
-        s->step.whole = (int64_t)(arbM * MULT32 + .5);
-    }
+    s->step.whole = (int64_t)(arbM * MULT32 + .5);
     s->out_in_ratio = MULT32 * arbL / (double)s->step.whole;
-
-    ++s;
-  }
+    // End higher-quality arb stage
 
   for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {
     printf(" KI %d\n", i);
@@ -411,8 +391,7 @@ STATIC char const * resampler_init(
   return 0;
 }
 
-static bool stage_process(stage_t * stage, bool flushing)
-{
+static bool stage_process(stage_t * stage, bool flushing) {
   fifo_t * fifo = &stage->fifo;
   bool done = false;
   int want;
@@ -428,8 +407,7 @@ static bool stage_process(stage_t * stage, bool flushing)
   return done && fifo_occupancy(fifo) < stage->input_size;
 }
 
-STATIC void resampler_process(rate_t * p, size_t olen)
-{
+STATIC void resampler_process(rate_t * p, size_t olen) {
   int const n = p->flushing? min(-(int)p->samples_out, (int)olen) : (int)olen;
   stage_t * stage = &p->stages[p->num_stages];
   fifo_t * fifo = &stage->fifo;
@@ -445,24 +423,22 @@ float * resampler_input(rate_t * p, float const * samples, size_t n) {
   return fifo_write(&p->stages[0].fifo, (int)n, samples);
 }
 
-STATIC float const * resampler_output(rate_t * p, float * samples, size_t * n0)
-{
+STATIC float const * resampler_output(rate_t * p, float * samples, size_t * n0) {
   fifo_t * fifo = &p->stages[p->num_stages].fifo;
   int n = p->flushing? min(-(int)p->samples_out, (int)*n0) : (int)*n0;
   p->samples_out += n = min(n, fifo_occupancy(fifo));
   return fifo_read(fifo, (int)(*n0 = (size_t)n), samples);
 }
 
-STATIC void resampler_flush(rate_t * p)
-{
+STATIC void resampler_flush(rate_t * p) {
   if (p->flushing) return;
   p->samples_out -= (int64_t)((double)p->samples_in / p->io_ratio + .5);
   p->samples_in = 0;
   p->flushing = true;
 }
 
-STATIC void resampler_sizes(size_t * shared, size_t * channel)
-{
+// FIXME: Remove
+STATIC void resampler_sizes(size_t * shared, size_t * channel) {
   *shared = sizeof(rate_shared_t);
   *channel = sizeof(rate_t);
 }

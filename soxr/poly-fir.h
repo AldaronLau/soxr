@@ -42,27 +42,6 @@
   fifo_read(&p->fifo, (int)at, NULL); \
   p->at.flt = at - (int)at; } /* Could round to 1 in some cirmcumstances. */
 
-
-
-#define highPrecCore(n) { \
-  step_t at; at.fix = p->at.fix; \
-  for (i = 0; at.integer < num_in; ++i, \
-      at.fix.ls.all += p->step.fix.ls.all, \
-      at.whole += p->step.whole + (at.fix.ls.all < p->step.fix.ls.all)) { \
-    float const * const __restrict in = input + at.integer; \
-    uint32_t frac = at.fraction; \
-    int phase = (int)(frac >> (32 - PHASE_BITS)); /* High-order bits */ \
-    /* Low-order bits, scaled to [0,1): */ \
-    float x = (float)((frac << PHASE_BITS) * (1 / MULT32)); \
-    int j = 0; \
-    BEGINNING; CONVOLVE(n); END; \
-  } \
-  fifo_read(&p->fifo, at.integer, NULL); \
-  p->at.whole = at.fraction; \
-  p->at.fix.ls = at.fix.ls; }
-
-
-
 #define stdPrecCore(n) { \
   int64p_t at; at.all = p->at.whole; \
   for (i = 0; at.parts.ms < num_in; ++i, at.all += p->step.whole) { \
@@ -79,7 +58,7 @@
 
 #define SPCORE stdPrecCore
 
-#define core(n) if (p->use_hi_prec_clock) highPrecCore(n) else SPCORE(n)
+#define core(n) SPCORE(n)
 
 static void FUNCTION(stage_t * p, fifo_t * output_fifo)
 {

@@ -102,7 +102,6 @@ typedef struct stage {
 
   /* For a stage with variable L/M: */
   step_t     at, step;
-  bool       use_hi_prec_clock;
   int        L, remM;
   int        n, phase_bits, block_len;
   double     mult, phase0;
