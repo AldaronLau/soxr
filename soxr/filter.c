@@ -11,20 +11,70 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-    #define DFT_FLOAT float
-    #define DONE_WITH_FFT_CACHE done_with_fft_cache_f
-    #define FFT_CACHE_CCRW fft_cache_ccrw_f
-    #define FFT_LEN fft_len_f
-    #define LSX_CDFT _soxr_cdft_f
-    #define LSX_CLEAR_FFT_CACHE _soxr_clear_fft_cache_f
-    #define LSX_FFT_BR lsx_fft_br_f
-    #define LSX_FFT_SC lsx_fft_sc_f
-    #define LSX_INIT_FFT_CACHE _soxr_init_fft_cache_f
-    #define LSX_RDFT _soxr_rdft_f
-    #define LSX_SAFE_CDFT _soxr_safe_cdft_f
-    #define LSX_SAFE_RDFT _soxr_safe_rdft_f
-    #define UPDATE_FFT_CACHE update_fft_cache_f
-    #include "fft4g_cache.h"
+static int * lsx_fft_br_f;
+static float * lsx_fft_sc_f;
+static int fft_len_f = -1;
+static ccrw2_t fft_cache_ccrw_f;
+
+void _soxr_init_fft_cache_f(void) {
+  if (fft_len_f >= 0)
+    return;
+  assert(lsx_fft_br_f == NULL);
+  assert(lsx_fft_sc_f == NULL);
+  assert(fft_len_f == -1);
+  ccrw2_init(fft_cache_ccrw_f);
+  fft_len_f = 0;
+}
+
+void _soxr_clear_fft_cache_f(void)
+{
+  assert(fft_len_f >= 0);
+  ccrw2_clear(fft_cache_ccrw_f);
+  free(lsx_fft_br_f);
+  free(lsx_fft_sc_f);
+  lsx_fft_sc_f = NULL;
+  lsx_fft_br_f = NULL;
+  fft_len_f = -1;
+}
+
+static bool update_fft_cache_f(int len) {
+  _soxr_init_fft_cache_f();
+  assert(lsx_is_power_of_2(len));
+  assert(fft_len_f >= 0);
+  ccrw2_become_reader(fft_cache_ccrw_f);
+  if (len > fft_len_f) {
+    ccrw2_cease_reading(fft_cache_ccrw_f);
+    ccrw2_become_writer(fft_cache_ccrw_f);
+    if (len > fft_len_f) {
+      int old_n = fft_len_f;
+      fft_len_f = len;
+      lsx_fft_br_f = realloc(lsx_fft_br_f, dft_br_len(fft_len_f) * sizeof(*lsx_fft_br_f));
+      lsx_fft_sc_f = realloc(lsx_fft_sc_f, dft_sc_len(fft_len_f) * sizeof(*lsx_fft_sc_f));
+      if (!old_n) {
+        lsx_fft_br_f[0] = 0;
+        atexit(_soxr_clear_fft_cache_f);
+      }
+      return true;
+    }
+    ccrw2_cease_writing(fft_cache_ccrw_f);
+    ccrw2_become_reader(fft_cache_ccrw_f);
+  }
+  return false;
+}
+
+static void done_with_fft_cache_f(bool is_writer)
+{
+  if (is_writer)
+    ccrw2_cease_writing(fft_cache_ccrw_f);
+  else ccrw2_cease_reading(fft_cache_ccrw_f);
+}
+
+void _soxr_safe_cdft_f(int len, int type, float * d)
+{
+  bool is_writer = update_fft_cache_f(len);
+  _soxr_cdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+  done_with_fft_cache_f(is_writer);
+}
 
 void _soxr_safe_rdft_f(int len, int type, float * d) {
     bool is_writer = update_fft_cache_f(len);
