@@ -53,9 +53,10 @@ typedef union { /* Uint64 in parts */
 } uint64p_t;
 
 typedef struct {
-  int        dft_length, num_taps, post_peak;
-  void       * dft_forward_setup, * dft_backward_setup;
-  float   * coefs;
+  int dft_length;
+  int num_taps;
+  int post_peak;
+  float* coefs;
 } dft_filter_t;
 
 typedef struct { /* So generated filter coefs may be shared between channels */
@@ -76,8 +77,6 @@ typedef union { /* Fixed point arithmetic */
 
 typedef int core_flags_t;
 
-#include "rdft_t.h"
-
 typedef struct stage {
   int        num;
 
@@ -93,7 +92,6 @@ typedef struct stage {
   bool       is_input;
 
   /* For a stage with variable (run-time generated) filter coefs: */
-  // fn_t const * rdft_cb;
   rate_shared_t * shared;
   unsigned   dft_filter_num; /* Which, if any, of the 2 DFT filters to use */
   float       * dft_scratch;
@@ -118,7 +116,6 @@ typedef struct {
   half_fir_info_t  const * doub_firs;
   size_t doub_firs_len;
   poly_fir_t const * poly_firs;
-//  fn_t * rdft_cb;
 } cr_core_t;
 
 typedef struct rate rate_t;

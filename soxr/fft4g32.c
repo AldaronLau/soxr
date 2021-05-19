@@ -1322,29 +1322,3 @@ static void dstsub(int n, float *a, int nc, float const *c) {
     }
     a[m] *= c[0];
 }
-
-#include "rdft_t.h"
-static void * null(void) {return 0;}
-static void forward (int length, void * setup, float * H) {_soxr_safe_rdft_f(length,  1, H); (void)setup;}
-static void backward(int length, void * setup, float * H) {_soxr_safe_rdft_f(length, -1, H); (void)setup;}
-static int multiplier(void) {return 2;}
-static void nothing(void) {}
-static int flags(void) {return 0;}
-
-fn_t _soxr_rdft32_cb[] = {
-  (fn_t) null, // 0
-  (fn_t) null, // 1
-  (fn_t) nothing, // 2 
-  (fn_t) forward, // 3
-  (fn_t) forward, // 4
-  (fn_t) backward, // 5
-  (fn_t) backward, // 6
-  (fn_t) _soxr_ordered_convolve_f, // 7
-  (fn_t) _soxr_ordered_partial_convolve_f, // 8
-  (fn_t) multiplier, // 9
-  (fn_t) nothing, // 10
-  (fn_t) malloc, // 11
-  (fn_t) calloc, // 12
-  (fn_t) free, // 13
-  (fn_t) flags, // 14
-};

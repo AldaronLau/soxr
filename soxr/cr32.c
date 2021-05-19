@@ -11,8 +11,6 @@
 #include "internal.h"
 #include "cr.h"
 
-extern fn_t _soxr_rdft32_cb[];
-
 #include "half-coefs.h"
 
 #define FUNCTION_H h7
