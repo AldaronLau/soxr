@@ -11,61 +11,34 @@
 #include "fft4g.h"
 #include "ccrw2.h"
 
-static int * lsx_fft_br_f;
-static float * lsx_fft_sc_f;
-static int fft_len_f = -1;
+static void brsc(int** br, float** sc, int len) {
+    assert(lsx_is_power_of_2(len));
+  
+    int dft_br_len = 2ul + (1ul << (int)(log(len / 2 + .5) / log(2.)) / 2);
+    int dft_sc_len = (unsigned long) len / 2;
+    
+    *br = malloc(dft_br_len * sizeof(int));
+    *sc = malloc(dft_sc_len * sizeof(float));
 
-void _soxr_init_fft_cache_f(void) {
-  if (fft_len_f >= 0)
-    return;
-  assert(lsx_fft_br_f == NULL);
-  assert(lsx_fft_sc_f == NULL);
-  assert(fft_len_f == -1);
-  fft_len_f = 0;
-}
-
-void _soxr_clear_fft_cache_f(void)
-{
-  assert(fft_len_f >= 0);
-  free(lsx_fft_br_f);
-  free(lsx_fft_sc_f);
-  lsx_fft_sc_f = NULL;
-  lsx_fft_br_f = NULL;
-  fft_len_f = -1;
-}
-
-// Returns true if writer, false if not.
-static bool update_fft_cache_f(int len) {
-  _soxr_init_fft_cache_f();
-  assert(lsx_is_power_of_2(len));
-  assert(fft_len_f >= 0);
-  if (len > fft_len_f) {
-    if (len > fft_len_f) {
-      int old_n = fft_len_f;
-      int dft_br_len = 2ul + (1ul << (int)(log(len / 2 + .5) / log(2.)) / 2);
-      int dft_sc_len = (unsigned long) len / 2;
-      fft_len_f = len;
-      
-      lsx_fft_br_f = realloc(lsx_fft_br_f, dft_br_len * sizeof(*lsx_fft_br_f));
-      lsx_fft_sc_f = realloc(lsx_fft_sc_f, dft_sc_len * sizeof(*lsx_fft_sc_f));
-      if (!old_n) {
-        lsx_fft_br_f[0] = 0;
-        atexit(_soxr_clear_fft_cache_f);
-      }
-      return true;
-    }
-  }
-  return false;
+    *br[0] = 0;
 }
 
 void _soxr_safe_cdft_f(int len, int type, float* d) {
-    update_fft_cache_f(len);
-    cdft(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+    int* br;
+    float* sc;
+    brsc(&br, &sc, len);
+    cdft(len, type, d, br, sc);
+    free(br);
+    free(sc);
 }
 
 void _soxr_safe_rdft_f(int len, int type, float* d) {
-    update_fft_cache_f(len);
-    rdft(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+    int* br;
+    float* sc;
+    brsc(&br, &sc, len);
+    rdft(len, type, d, br, sc);
+    free(br);
+    free(sc);
 }
 
 void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b) {
@@ -125,7 +98,7 @@ double * _soxr_make_lpf(int num_taps, double Fc, double beta, double rho, double
 
   if (h) for (i = 0; i <= m / 2; ++i) {
     double z = i - .5 * m, x = z * M_PI, y = z * mult1;
-    h[i] = x!=0? sin(Fc * x) / x : Fc;
+    h[i] = x != 0 ? sin(Fc * x) / x : Fc;
     h[i] *= _soxr_bessel_I_0(beta * sqrt(1 - y * y)) * mult;
     if (m - i != i)
       h[m - i] = h[i];
@@ -133,8 +106,7 @@ double * _soxr_make_lpf(int num_taps, double Fc, double beta, double rho, double
   return h;
 }
 
-void _soxr_kaiser_params(double att, double Fc, double tr_bw, double * beta, int * num_taps)
-{
+void _soxr_kaiser_params(double att, double Fc, double tr_bw, double * beta, int * num_taps) {
   *beta = *beta < 0? _soxr_kaiser_beta(att, tr_bw * .5 / Fc): *beta;
   att = att < 60? (att - 7.95) / (2.285 * M_PI * 2) :
     ((.0007528358-1.577737e-05**beta)**beta+.6248022)**beta+.06186902;
