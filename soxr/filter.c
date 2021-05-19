@@ -68,8 +68,7 @@ void _soxr_safe_rdft_f(int len, int type, float* d) {
     rdft(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
 }
 
-void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b)
-{
+void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b) {
   int i;
   a[0] *= b[0];
   a[1] *= b[1];
@@ -81,8 +80,7 @@ void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b
   (void)not_used;
 }
 
-void _soxr_ordered_partial_convolve_f(int n, float * a, const float * b)
-{
+void _soxr_ordered_partial_convolve_f(int n, float * a, const float * b) {
   int i;
   a[0] *= b[0];
   for (i = 2; i < n; i += 2) {
@@ -93,8 +91,7 @@ void _soxr_ordered_partial_convolve_f(int n, float * a, const float * b)
   a[1] = b[i] * a[i] - b[i+1] * a[i+1];
 }
 
-double _soxr_kaiser_beta(double att, double tr_bw)
-{
+double _soxr_kaiser_beta(double att, double tr_bw) {
   if (att >= 60) {
     static const double coefs[][4] = {
       {-6.784957e-10,1.02856e-05,0.1087556,-0.8988365+.001},
@@ -198,11 +195,10 @@ double _soxr_f_resp(double t, double a) {
   return linear_to_dB(x);
 }
 
-double _soxr_inv_f_resp(double drop, double a)
-{
+double _soxr_inv_f_resp(double drop, double a) {
   double x = sinePhi(a), s;
   drop = exp(drop * (M_LN10 * 0.05));
   s = drop > .5 ? 1 - drop : drop;
   x = asin(pow(s, 1/sinePow(x))) / x;
-  return drop > .5? x : 1 -x;
+  return drop > .5 ? x : 1 - x;
 }
