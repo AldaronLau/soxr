@@ -25,17 +25,6 @@ static void rdft_backward(int length, float * H) {
     _soxr_safe_rdft_f(length, -1, H);
 }
 
-
-
-#define coef_coef(C,T,x) \
-  C((T*)result, interp_order, num_coefs, j, x, num_coefs - 1 - i)
-
-#define STORE(C,T) { \
-  if (interp_order > 2) coef_coef(C,T,3) = (T)d; \
-  if (interp_order > 1) coef_coef(C,T,2) = (T)c; \
-  if (interp_order > 0) coef_coef(C,T,1) = (T)b; \
-  coef_coef(C,T,0) = (T)f0;}
-
 static float * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
     int num_phases, int interp_order,
     core_flags_t core_flags)
@@ -56,15 +45,17 @@ static float * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
         default: assert(!interp_order);
       }
       if ((core_flags & 3) == 0) {
-            STORE(coef, float);
+        int fir_coef_num = num_coefs - 1 - i;
+
+        if (interp_order > 2) coef(result, interp_order, num_coefs, j, 3, fir_coef_num) = (float)d;
+        if (interp_order > 1) coef(result, interp_order, num_coefs, j, 2, fir_coef_num) = (float)c;
+        if (interp_order > 0) coef(result, interp_order, num_coefs, j, 1, fir_coef_num) = (float)b;
+        coef(result, interp_order, num_coefs, j, 0, fir_coef_num) = (float)f0;
       }
       f2 = f1, f1 = f0;
     }
   return result;
 }
-
-#undef STORE
-#undef coef_coef
 
 static void dft_stage_fn(stage_t * p, fifo_t * output_fifo) {
   float* output;

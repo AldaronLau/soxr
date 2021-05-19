@@ -27,13 +27,6 @@ typedef struct {float beta; poly_fir1_t interp[3];} poly_fir_t;
   ((interp_order) + 1) * (fir_coef_num) + \
   ((interp_order) - (coef_interp_num))]
 
-/* Conceptually: coef_p is &coefs[num_phases][fir_len/4][interp_order+1][4]: */
-#define coef4(coef_p, interp_order, fir_len, phase_num, coef_interp_num, fir_coef_num) (coef_p)[\
-  (fir_len) * ((interp_order) + 1) * (phase_num) + \
-  ((interp_order) + 1) * ((fir_coef_num) & ~3) + \
-  4 * ((interp_order) - (coef_interp_num)) + \
-  ((fir_coef_num) & 3)]
-
 typedef union { /* Int64 in parts */
   #if HAVE_BIGENDIAN
   struct {int32_t ms; uint32_t ls;} parts;
