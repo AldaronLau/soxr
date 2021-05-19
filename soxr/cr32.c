@@ -120,7 +120,7 @@ static poly_fir_t const poly_firs[] = {
 static cr_core_t const cr_core = {
   half_firs, array_length(half_firs),
   0, 0,
-  poly_firs, _soxr_rdft32_cb
+  poly_firs
 };
 
 char const* resampler_create(void * channel, void * shared, double io_ratio) {

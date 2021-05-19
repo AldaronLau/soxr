@@ -93,7 +93,7 @@ typedef struct stage {
   bool       is_input;
 
   /* For a stage with variable (run-time generated) filter coefs: */
-  fn_t const * rdft_cb;
+  // fn_t const * rdft_cb;
   rate_shared_t * shared;
   unsigned   dft_filter_num; /* Which, if any, of the 2 DFT filters to use */
   float       * dft_scratch;
@@ -118,7 +118,7 @@ typedef struct {
   half_fir_info_t  const * doub_firs;
   size_t doub_firs_len;
   poly_fir_t const * poly_firs;
-  fn_t * rdft_cb;
+//  fn_t * rdft_cb;
 } cr_core_t;
 
 typedef struct rate rate_t;

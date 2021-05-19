@@ -8,12 +8,26 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "filter.h"
+#include "filter.h" // _soxr_safe_rdft_f, etc.
 
 #include "internal.h"
 #define STATIC
 
 #include "cr.h"
+
+
+
+static void rdft_forward(int length, void * setup, float * H) {
+    _soxr_safe_rdft_f(length, 1, H);
+    // (void)setup;
+}
+
+static void rdft_backward(int length, void * setup, float * H) {
+    _soxr_safe_rdft_f(length, -1, H);
+    // (void)setup;
+}
+
+
 
 #define coef_coef(C,T,x) \
   C((T*)result, interp_order, num_coefs, j, x, num_coefs - 1 - i)
@@ -57,16 +71,18 @@ static float * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
 #undef STORE
 #undef coef_coef
 
-static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
-{
-  float * output, * dft_out;
-  int i, j, num_in = max(0, fifo_occupancy(&p->fifo));
+static void dft_stage_fn(stage_t * p, fifo_t * output_fifo) {
+  float* output;
+  float* dft_out;
+  int i;
+  int j;
+  int num_in = max(0, fifo_occupancy(&p->fifo));
   rate_shared_t const * s = p->shared;
   dft_filter_t const * f = &s->dft_filter[p->dft_filter_num];
   int const overlap = f->num_taps - 1;
 
   if (p->at.integer + p->L * num_in >= f->dft_length) {
-    fn_t const * const RDFT_CB = p->rdft_cb;
+    // fn_t const * const RDFT_CB = p->rdft_cb;
     size_t const sizeof_real = sizeof(char) << 2;
 
     div_t divd = div(f->dft_length - overlap - p->at.integer + p->L - 1, p->L);
@@ -80,27 +96,20 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
     if (lsx_is_power_of_2(p->L)) { /* F-domain */
       int portion = f->dft_length / p->L;
       memcpy(dft_out, input, (unsigned)portion * sizeof_real);
-      rdft_oforward(portion, f->dft_forward_setup, dft_out, p->dft_scratch);
-      {
-#define dft_out ((float *)dft_out)
-        for (i = portion + 2; i < (portion << 1); i += 2) /* Mirror image. */
-          dft_out[i] = dft_out[(portion << 1) - i],
-            dft_out[i+1] = -dft_out[(portion << 1) - i + 1];
-        dft_out[portion] = dft_out[1];
-        dft_out[portion + 1] = 0;
-        dft_out[1] = dft_out[0];
-#undef dft_out
-      }
+      rdft_forward(portion, f->dft_forward_setup, dft_out); // , p->dft_scratch);
+
+      for (i = portion + 2; i < (portion << 1); i += 2) /* Mirror image. */
+        dft_out[i] = dft_out[(portion << 1) - i],
+          dft_out[i+1] = -dft_out[(portion << 1) - i + 1];
+      dft_out[portion] = dft_out[1];
+      dft_out[portion + 1] = 0;
+      dft_out[1] = dft_out[0];
 
       for (portion <<= 1; i < f->dft_length; i += portion, portion <<= 1) {
         memcpy((char *)dft_out + (size_t)i * sizeof_real, dft_out, (size_t)portion * sizeof_real);
 
-        #define dft_out ((float *)dft_out)
-          dft_out[i + 1] = 0;
-        #undef dft_out
+        dft_out[i + 1] = 0;
       }
-      if (p->step.integer > 0)
-        rdft_reorder_back(f->dft_length, f->dft_backward_setup, dft_out, p->dft_scratch);
     } else {
       if (p->L == 1)
         memcpy(dft_out, input, (size_t)f->dft_length * sizeof_real);
@@ -111,14 +120,14 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
         p->at.integer = p->L - 1 - divd.rem;
       }
       if (p->step.integer > 0)
-        rdft_forward(f->dft_length, f->dft_forward_setup, dft_out, p->dft_scratch);
+        rdft_forward(f->dft_length, f->dft_forward_setup, dft_out); // , p->dft_scratch);
       else
-        rdft_oforward(f->dft_length, f->dft_forward_setup, dft_out, p->dft_scratch);
+        rdft_forward(f->dft_length, f->dft_forward_setup, dft_out); // , p->dft_scratch);
     }
 
     if (p->step.integer > 0) {
-      rdft_convolve(f->dft_length, f->dft_backward_setup, dft_out, f->coefs);
-      rdft_backward(f->dft_length, f->dft_backward_setup, dft_out, p->dft_scratch);
+      _soxr_ordered_convolve_f(f->dft_length, f->dft_backward_setup, dft_out, f->coefs);
+      rdft_backward(f->dft_length, f->dft_backward_setup, dft_out); // , p->dft_scratch);
       if (0 && p->step.integer == 1)
         memcpy(output, dft_out, (size_t)f->dft_length * sizeof_real);
       if (p->step.integer != 1) {
@@ -134,21 +143,20 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo)
     }
     else { /* F-domain */
       int m = -p->step.integer;
-      rdft_convolve_portion(f->dft_length >> m, dft_out, f->coefs);
-      rdft_obackward(f->dft_length >> m, f->dft_backward_setup, dft_out, p->dft_scratch);
+      _soxr_ordered_partial_convolve_f(f->dft_length >> m, dft_out, f->coefs);
+      rdft_backward(f->dft_length >> m, f->dft_backward_setup, dft_out); // , p->dft_scratch);
       if (0)
         memcpy(output, dft_out, (size_t)(f->dft_length >> m) * sizeof_real);
       fifo_trim_by(output_fifo, (((1 << m) - 1) * f->dft_length + overlap) >>m);
     }
-    (void)RDFT_CB;
+    // (void)RDFT_CB;
   }
   p->input_size = (f->dft_length - p->at.integer + p->L - 1) / p->L;
 }
 
 /* Set to 4 x nearest power of 2 or half of that */
 /* if danger of causing too many cache misses. */
-static int set_dft_length(int num_taps, int min, int large)
-{
+static int set_dft_length(int num_taps, int min, int large) {
   double d = log((double)num_taps) / log(2.);
   return 1 << range_limit((int)(d + 2.77), min, max((int)(d + 1.77), large));
 }
@@ -156,8 +164,7 @@ static int set_dft_length(int num_taps, int min, int large)
 static void dft_stage_init(
     unsigned instance, double Fp, double Fs, double Fn, double att,
     double phase_response, stage_t * p, int L, int M,
-    unsigned min_dft_size, unsigned large_dft_size,
-    fn_t const * RDFT_CB)
+    unsigned min_dft_size, unsigned large_dft_size)
 {
   dft_filter_t * f = &p->shared->dft_filter[instance];
   int num_taps = 0, dft_length = f->dft_length, i, offset;
@@ -171,31 +178,31 @@ static void dft_stage_init(
     f->post_peak = num_taps / 2;
 
     dft_length = set_dft_length(num_taps, (int)min_dft_size, (int)large_dft_size);
-    f->coefs = rdft_calloc((size_t)dft_length, sizeof_real);
+    f->coefs = calloc((size_t)dft_length, sizeof_real);
     offset = dft_length - num_taps + 1;
-    m = (1. / dft_length) * rdft_multiplier() * L;
+    m = (1. / dft_length) * 2 * L;
     for (i = 0; i < num_taps; ++i)
         ((float *)f->coefs)[(i + offset) & (dft_length - 1)] =(float)(h[i] * m);
     free(h);
   }
 
   if (!f->dft_length) {
-    void * coef_setup = rdft_forward_setup(dft_length);
+    void * coef_setup = NULL;
     int Lp = lsx_is_power_of_2(L)? L : 1;
     int Mp = f_domain_m? M : 1;
-    f->dft_forward_setup = rdft_forward_setup(dft_length / Lp);
-    f->dft_backward_setup = rdft_backward_setup(dft_length / Mp);
-    if (Mp == 1)
-      rdft_forward(dft_length, coef_setup, f->coefs, p->dft_scratch);
-    else
-      rdft_oforward(dft_length, coef_setup, f->coefs, p->dft_scratch);
-    rdft_delete_setup(coef_setup);
+    f->dft_forward_setup = NULL;
+    f->dft_backward_setup = NULL;
+    if (Mp == 1) {
+      rdft_forward(dft_length, coef_setup, f->coefs); // , p->dft_scratch);
+    } else {
+      rdft_forward(dft_length, coef_setup, f->coefs); // , p->dft_scratch);
+    }
+    // rdft_delete_setup(coef_setup);
     f->num_taps = num_taps;
     f->dft_length = dft_length;
   }
   p->out_in_ratio = (double)L / M;
   p->core_flags = 0;
-  p->rdft_cb = RDFT_CB;
   p->fn = dft_stage_fn;
   p->preload = f->post_peak / L;
   p->at.integer = f->post_peak % L;
@@ -320,7 +327,7 @@ STATIC char const * resampler_init(
     Fn1 = preM? max(preL, preM) : arbM / arbL;
     dft_stage_init(0, tighten(Fp1), Fs1, Fn1, att, phase_response, s++, preL,
         max(preM, 1), 10,
-        17, core->rdft_cb);
+        17); // , core->rdft_cb);
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
             

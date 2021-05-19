@@ -84,8 +84,6 @@ static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
 
 static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
 {
-  printf("CZSF\n");
-  
   unsigned u;
   size_t done = 0;
 
@@ -93,7 +91,7 @@ static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
     done = soxr_output_1ch(p, u, len);
   }
 
-    memcpy(out, (float const *)p->channel_ptrs[0], done * sizeof(float));
+  memcpy(out, (float const *)p->channel_ptrs[0], done * sizeof(float));
 
   return done;
 }
@@ -107,8 +105,7 @@ static size_t soxr_output(soxr_t p, void * out, size_t len0) {
     return odone0;
 }
 
-static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen)
-{
+static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen) {
   size_t result = (size_t)ceil((double)olen * p->io_ratio);
   return min(result, ilen);
 }
@@ -123,17 +120,19 @@ void soxr_process(soxr_t p,
   if (!in) {
     flush_requested = true, ilen = ilen0 = 0;
   } else {
-    if ((ptrdiff_t)ilen0 < 0)
+    if ((ptrdiff_t)ilen0 < 0) {
       flush_requested = true, ilen0 = ~ilen0;
-    if (idone0 && (1 || flush_requested))
+    }
+    if (idone0 && (1 || flush_requested)) {
       ilen = soxr_i_for_o(p, olen, ilen0);
-    else
+    } else {
       ilen = ilen0/*, olen = soxr_o_for_i(p, ilen, olen)*/;
+    }
   }
   p->flushing |= ilen == ilen0 && flush_requested;
 
-    idone = ilen? soxr_input (p, in , ilen) : 0;
-    odone = soxr_output(p, out, olen);
+  idone = ilen? soxr_input (p, in , ilen) : 0;
+  odone = soxr_output(p, out, olen);
 
   if (idone0) *idone0 = idone;
   if (odone0) *odone0 = odone;
