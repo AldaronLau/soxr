@@ -42,9 +42,12 @@ static bool update_fft_cache_f(int len) {
   if (len > fft_len_f) {
     if (len > fft_len_f) {
       int old_n = fft_len_f;
+      int dft_br_len = 2ul + (1ul << (int)(log(len / 2 + .5) / log(2.)) / 2);
+      int dft_sc_len = (unsigned long) len / 2;
       fft_len_f = len;
-      lsx_fft_br_f = realloc(lsx_fft_br_f, dft_br_len(fft_len_f) * sizeof(*lsx_fft_br_f));
-      lsx_fft_sc_f = realloc(lsx_fft_sc_f, dft_sc_len(fft_len_f) * sizeof(*lsx_fft_sc_f));
+      
+      lsx_fft_br_f = realloc(lsx_fft_br_f, dft_br_len * sizeof(*lsx_fft_br_f));
+      lsx_fft_sc_f = realloc(lsx_fft_sc_f, dft_sc_len * sizeof(*lsx_fft_sc_f));
       if (!old_n) {
         lsx_fft_br_f[0] = 0;
         atexit(_soxr_clear_fft_cache_f);
@@ -57,12 +60,12 @@ static bool update_fft_cache_f(int len) {
 
 void _soxr_safe_cdft_f(int len, int type, float* d) {
     update_fft_cache_f(len);
-    _soxr_cdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+    cdft(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
 }
 
 void _soxr_safe_rdft_f(int len, int type, float* d) {
     update_fft_cache_f(len);
-    _soxr_rdft_f(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
+    rdft(len, type, d, lsx_fft_br_f, lsx_fft_sc_f);
 }
 
 void _soxr_ordered_convolve_f(int n, void * not_used, float * a, const float * b)

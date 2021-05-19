@@ -17,9 +17,6 @@
 
 /* -------------------------------- Gubbins --------------------------------- */
 
-#if !defined soxr_included
-#define soxr_included
-
 #include <stddef.h>
 
 /* --------------------------- Type declarations ---------------------------- */
@@ -56,4 +53,3 @@ void soxr_process(
     zero.  End-of-input (i.e. no data is available nor shall be available)
     may be indicated by seting `in' to NULL.                                  */
 
-#endif

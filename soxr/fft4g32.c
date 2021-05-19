@@ -291,17 +291,6 @@ Appendix :
 #include <math.h>
 #include "fft4g.h"
 
-  #define sin(x)   sinf(x)
-  #define cos(x)   cosf(x)
-  #define atan(x)  atanf(x)
-
-  #define cdft  _soxr_cdft_f
-  #define rdft  _soxr_rdft_f
-  #define ddct  _soxr_ddct_f
-  #define ddst  _soxr_ddst_f
-  #define dfct  _soxr_dfct_f
-  #define dfst  _soxr_dfst_f
-
 
 static void bitrv2conj(int n, int *ip, float *a);
 static void bitrv2(int n, int *ip, float *a);
@@ -309,16 +298,12 @@ static void cft1st(int n, float *a, float const *w);
 static void cftbsub(int n, float *a, float const *w);
 static void cftfsub(int n, float *a, float const *w);
 static void cftmdl(int n, int l, float *a, float const *w);
-static void dctsub(int n, float *a, int nc, float const *c);
-static void dstsub(int n, float *a, int nc, float const *c);
 static void makect(int nc, int *ip, float *c);
 static void makewt(int nw, int *ip, float *w);
 static void rftbsub(int n, float *a, int nc, float const *c);
 static void rftfsub(int n, float *a, int nc, float const *c);
 
-
-void cdft(int n, int isgn, float *a, int *ip, float *w)
-{
+void cdft(int n, int isgn, float *a, int *ip, float *w) {
     if (n > (ip[0] << 2)) {
         makewt(n >> 2, ip, w);
     }
@@ -335,9 +320,7 @@ void cdft(int n, int isgn, float *a, int *ip, float *w)
     }
 }
 
-
-void rdft(int n, int isgn, float *a, int *ip, float *w)
-{
+void rdft(int n, int isgn, float *a, int *ip, float *w) {
     int nw, nc;
     float xi;
 
@@ -375,9 +358,7 @@ void rdft(int n, int isgn, float *a, int *ip, float *w)
     }
 }
 
-
-void ddct(int n, int isgn, float *a, int *ip, float *w)
-{
+/*void ddct(int n, int isgn, float *a, int *ip, float *w) {
     int j, nw, nc;
     float xr;
 
@@ -424,11 +405,9 @@ void ddct(int n, int isgn, float *a, int *ip, float *w)
         }
         a[n - 1] = xr;
     }
-}
+}*/
 
-
-void ddst(int n, int isgn, float *a, int *ip, float *w)
-{
+/*void ddst(int n, int isgn, float *a, int *ip, float *w) {
     int j, nw, nc;
     float xr;
 
@@ -475,11 +454,9 @@ void ddst(int n, int isgn, float *a, int *ip, float *w)
         }
         a[n - 1] = -xr;
     }
-}
+}*/
 
-
-void dfct(int n, float *a, float *t, int *ip, float *w)
-{
+/*void dfct(int n, float *a, float *t, int *ip, float *w) {
     int j, k, l, m, mh, nw, nc;
     float xr, xi, yr, yi;
 
@@ -565,10 +542,10 @@ void dfct(int n, float *a, float *t, int *ip, float *w)
         a[2] = t[0];
         a[0] = t[1];
     }
-}
+}*/
 
 
-void dfst(int n, float *a, float *t, int *ip, float *w)
+/*void dfst(int n, float *a, float *t, int *ip, float *w)
 {
     int j, k, l, m, mh, nw, nc;
     float xr, xi, yr, yi;
@@ -646,7 +623,7 @@ void dfst(int n, float *a, float *t, int *ip, float *w)
         a[l] = t[0];
     }
     a[0] = 0;
-}
+}*/
 
 
 /* -------- initializing routines -------- */
@@ -661,15 +638,15 @@ static void makewt(int nw, int *ip, float *w)
     ip[1] = 1;
     if (nw > 2) {
         nwh = nw >> 1;
-        delta = atan(1.0) / (float)nwh;
+        delta = atanf(1.0) / (float)nwh;
         w[0] = 1;
         w[1] = 0;
-        w[nwh] = cos(delta * (float)nwh);
+        w[nwh] = cosf(delta * (float)nwh);
         w[nwh + 1] = w[nwh];
         if (nwh > 2) {
             for (j = 2; j < nwh; j += 2) {
-                x = cos(delta * (float)j);
-                y = sin(delta * (float)j);
+                x = cosf(delta * (float)j);
+                y = sinf(delta * (float)j);
                 w[j] = x;
                 w[j + 1] = y;
                 w[nw - j] = y;
@@ -689,12 +666,12 @@ static void makect(int nc, int *ip, float *c)
     ip[1] = nc;
     if (nc > 1) {
         nch = nc >> 1;
-        delta = atan(1.0) / (float)nch;
-        c[0] = cos(delta * (float)nch);
+        delta = atanf(1.0) / (float)nch;
+        c[0] = cosf(delta * (float)nch);
         c[nch] = 0.5f * c[0];
         for (j = 1; j < nch; j++) {
-            c[j] = 0.5f * cos(delta * (float)j);
-            c[nc - j] = 0.5f * sin(delta * (float)j);
+            c[j] = 0.5f * cosf(delta * (float)j);
+            c[nc - j] = 0.5f * sinf(delta * (float)j);
         }
     }
 }
@@ -1285,6 +1262,7 @@ static void rftbsub(int n, float *a, int nc, float const *c) {
     a[m + 1] = -a[m + 1];
 }
 
+/*
 static void dctsub(int n, float *a, int nc, float const *c) {
     int j, k, kk, ks, m;
     float wkr, wki, xr;
@@ -1321,4 +1299,4 @@ static void dstsub(int n, float *a, int nc, float const *c) {
         a[j] = xr;
     }
     a[m] *= c[0];
-}
+}*/
