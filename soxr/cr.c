@@ -14,8 +14,6 @@
 
 #include "cr.h"
 
-
-
 static void rdft_forward(int length, float * H) {
     _soxr_safe_rdft_f(length, 1, H);
 }
@@ -286,7 +284,7 @@ char const * resampler_init(
 
   half_fir_info = find_half_fir(core->half_firs, core->half_firs_len, att);
   for (i = 0, s = p->stages; i < shr; ++i, ++s) {
-    s->fn = half_fir_info->fn;
+    s->fn = NULL;
     s->coefs = half_fir_info->coefs;
     s->n = half_fir_info->num_coefs;
     s->pre_post = 4 * s->n;

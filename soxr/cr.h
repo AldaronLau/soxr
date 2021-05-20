@@ -12,11 +12,18 @@ typedef void (* stage_fn_t)(struct stage * input, fifo_t * output);
 typedef struct half_fir_info {
   int num_coefs;
   float const * coefs;
-  stage_fn_t fn, dfn;
   float att;
 } half_fir_info_t;
-typedef struct {float scalar; stage_fn_t fn;} poly_fir1_t;
-typedef struct {float beta; poly_fir1_t interp[3];} poly_fir_t;
+
+typedef struct {
+    float scalar;
+    stage_fn_t fn;
+} poly_fir1_t;
+
+typedef struct {
+    float beta;
+    poly_fir1_t interp[1];
+} poly_fir_t;
 
 #define U100_l 42
 #define MULT32 (65536. * 65536.)
@@ -106,8 +113,6 @@ typedef enum {rolloff_small, rolloff_medium, rolloff_none} rolloff_t;
 typedef struct {
   half_fir_info_t  const * half_firs;
   size_t half_firs_len;
-  half_fir_info_t  const * doub_firs;
-  size_t doub_firs_len;
   poly_fir_t const * poly_firs;
 } cr_core_t;
 
@@ -115,10 +120,12 @@ typedef struct rate rate_t;
 
 struct rate {
   cr_core_t const * core;
-  double     io_ratio;
-  int64_t    samples_in, samples_out;
-  int        num_stages, flushing;
-  stage_t    * stages;
+  double            io_ratio;
+  int64_t           samples_in;
+  int64_t           samples_out;
+  int               num_stages;
+  int               flushing;
+  stage_t*          stages;
 };
 
 #include "soxr.h"
