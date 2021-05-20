@@ -1,29 +1,13 @@
 use std::os::raw::{c_void};
 use std::thread;
 
+mod resampler;
+
 extern "C" {
     /* Create a stream resampler: */
     fn soxr_create(
         rate_io: f64,      /* Input ÷ Output sample-rate. */
     ) -> *mut c_void;               
-
-    /* If not using an app-supplied input function, after creating a stream
-     * resampler, repeatedly call: */
-
-    fn soxr_process(
-        resampler: *mut c_void,      /* As returned by soxr_create. */
-                                /* Input (to be resampled): */
-        in_: *const c_void,             /* Input buffer(s); may be NULL (see below). */
-        ilen: usize,           /* Input buf. length (samples per channel). */
-        idone: *mut usize,        /* To return actual # samples used (<= ilen). */
-                                /* Output (resampled): */
-        out: *mut c_void,            /* Output buffer(s).*/
-        olen: usize,           /* Output buf. length (samples per channel). */
-        odone: *mut usize);       /* To return actual # samples out (<= olen).
-
-        Note that no special meaning is associated with ilen or olen equal to
-        zero.  End-of-input (i.e. no data is available nor shall be available)
-        may be indicated by seting `in' to NULL.                                  */
 }
 
 fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
@@ -33,39 +17,10 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
     // Sample to 44100 from 48000
     let resampler = unsafe { soxr_create(hz_in / hz_out) };
 
-    let mut ilen = 0;
-    let mut olen = 0;
-
     // Resample the whole thing at once.
-    unsafe {
-        // Add input
-        soxr_process(
-            resampler,
-            input.as_ptr().cast(),
-            input.len(),
-            &mut ilen,
-            output.as_mut_ptr().cast(),
-            output.len(),
-            &mut olen,
-        );
-        let mut flush_len = 0;
-        // Flush output
-        soxr_process(
-            resampler,
-            std::ptr::null(),
-            0,
-            &mut 0,
-            output.as_mut_ptr().cast(),
-            output.len(),
-            &mut flush_len,
-        );
-        olen += flush_len;
-    }
+    let x = resampler::process(resampler, &input, &mut output);
+    resampler::flush(resampler, &mut output[x..]);
 
-    // Should have used all of both input and output
-    assert_eq!(ilen, input.len());
-    assert_eq!(olen, output.len());
-    
     output
 }
 
@@ -123,15 +78,12 @@ fn main() {
     let shaed = resample_audio("SHAED - ISOU.raw", 44_100.0, 48_000.0);
 
     // Reading test....
+    //std::fs::write("test.raw", &austra).expect("Could not write!");
     let song = std::fs::read("test.raw").expect("No test!");
     assert!(song == austra);
 
     // Reading check...
+    //std::fs::write("check.raw", &shaed).expect("Could not write!");
     let song = std::fs::read("check.raw").expect("No test!");
     assert!(song == shaed);
-
-/*
-    println!("Writing out...");
-
-    std::fs::write("check.raw", shaed).expect("Could not write!");*/
 }
