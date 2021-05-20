@@ -11,7 +11,6 @@
 #include "filter.h" // _soxr_safe_rdft_f, etc.
 
 #include "internal.h"
-#define STATIC
 
 #include "cr.h"
 
@@ -52,7 +51,8 @@ static float * prepare_poly_fir_coefs(double const * coefs, int num_coefs,
         if (interp_order > 0) coef(result, interp_order, num_coefs, j, 1, fir_coef_num) = (float)b;
         coef(result, interp_order, num_coefs, j, 0, fir_coef_num) = (float)f0;
       }
-      f2 = f1, f1 = f0;
+      f2 = f1;
+      f1 = f0;
     }
   return result;
 }
@@ -203,7 +203,7 @@ static struct half_fir_info const * find_half_fir(
 
 #include "stdio.h"
 
-STATIC char const * resampler_init(
+char const * resampler_init(
   rate_t * const p,             /* Per audio channel. */
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
@@ -390,7 +390,7 @@ static bool stage_process(stage_t * stage, bool flushing) {
   return done && fifo_occupancy(fifo) < stage->input_size;
 }
 
-STATIC void resampler_process(rate_t * p, size_t olen) {
+void resampler_process(rate_t * p, size_t olen) {
   int const n = p->flushing? min(-(int)p->samples_out, (int)olen) : (int)olen;
   stage_t * stage = &p->stages[p->num_stages];
   fifo_t * fifo = &stage->fifo;
@@ -406,14 +406,14 @@ float * resampler_input(rate_t * p, float const * samples, size_t n) {
   return fifo_write(&p->stages[0].fifo, (int)n, samples);
 }
 
-STATIC float const * resampler_output(rate_t * p, float * samples, size_t * n0) {
+float const * resampler_output(rate_t * p, float * samples, size_t * n0) {
   fifo_t * fifo = &p->stages[p->num_stages].fifo;
   int n = p->flushing? min(-(int)p->samples_out, (int)*n0) : (int)*n0;
   p->samples_out += n = min(n, fifo_occupancy(fifo));
   return fifo_read(fifo, (int)(*n0 = (size_t)n), samples);
 }
 
-STATIC void resampler_flush(rate_t * p) {
+void resampler_flush(rate_t * p) {
   if (p->flushing) return;
   p->samples_out -= (int64_t)((double)p->samples_in / p->io_ratio + .5);
   p->samples_in = 0;
@@ -421,7 +421,7 @@ STATIC void resampler_flush(rate_t * p) {
 }
 
 // FIXME: Remove
-STATIC void resampler_sizes(size_t * shared, size_t * channel) {
+void resampler_sizes(size_t * shared, size_t * channel) {
   *shared = sizeof(rate_shared_t);
   *channel = sizeof(rate_t);
 }

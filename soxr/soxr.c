@@ -20,15 +20,12 @@ void resampler_sizes(size_t * shared, size_t * channel);
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
 struct soxr {
-  double io_ratio;
+    double io_ratio;
 
-  size_t max_ilen;
+    void* resampler; /* For one channel. */
+    void* shared; /* Between channels. */
 
-  void* resampler; /* For one channel. */
-  void* shared; /* Between channels. */
-
-  void * * channel_ptrs;
-  int flushing;
+    int flushing;
 };
 
 #include "filter.h"
@@ -41,7 +38,6 @@ soxr_t soxr_create(double io_ratio) {
     size_t shared_size, channel_size;
 
     resampler_sizes(&shared_size, &channel_size);
-    p->channel_ptrs = calloc(sizeof(*p->channel_ptrs), 1);
     p->shared = calloc(shared_size, 1);
     p->resampler = calloc(channel_size, 1);
 
@@ -54,86 +50,54 @@ soxr_t soxr_create(double io_ratio) {
     return p;
 }
 
-static size_t soxr_input(soxr_t p, void const * in, size_t len)
-{
-    printf("EFI\n");
+static size_t soxr_input(soxr_t p, void const * in, size_t len) {
+    printf("SOXR_INPUT\n");
 
     if (!len) {
         p->flushing = true;
         return 0;
     }
 
-    p->channel_ptrs[0] = resampler_input(p->resampler, NULL, len);
-    memcpy(p->channel_ptrs[0], in, len * sizeof(float));
+    void* chan = resampler_input(p->resampler, NULL, len);
+    memcpy(chan, in, len * sizeof(float));
 
     return len;
 }
 
-static size_t soxr_output_1ch(soxr_t p, unsigned i, size_t len)
-{
-  printf("YOYO\n");
+static size_t soxr_output(soxr_t p, void * out, size_t len) {
+    printf("SOXR_OUTPUT\n");
 
-  float const * src;
-  if (p->flushing)
-    resampler_flush(p->resampler);
-  resampler_process(p->resampler, len);
-  src = resampler_output(p->resampler, NULL, &len);
-  p->channel_ptrs[i] = (void /* const */ *)src;
-  return len;
-}
+    float const * src;
+    if (p->flushing) {
+        resampler_flush(p->resampler);
+    }
+    resampler_process(p->resampler, len);
+    src = resampler_output(p->resampler, NULL, &len);
 
-static size_t soxr_output_no_callback(soxr_t p, soxr_buf_t out, size_t len)
-{
-  unsigned u;
-  size_t done = 0;
+    memcpy(out, (float const *) src, len * sizeof(float));
 
-  for (u = 0; u < 1; ++u) {
-    done = soxr_output_1ch(p, u, len);
-  }
-
-  memcpy(out, (float const *)p->channel_ptrs[0], done * sizeof(float));
-
-  return done;
-}
-
-static size_t soxr_output(soxr_t p, void * out, size_t len0) {
-    size_t odone, odone0 = 0, olen = len0;
-
-    odone = soxr_output_no_callback(p, out, olen);
-    odone0 += odone;
-
-    return odone0;
-}
-
-static size_t soxr_i_for_o(soxr_t p, size_t olen, size_t ilen) {
-  size_t result = (size_t)ceil((double)olen * p->io_ratio);
-  return min(result, ilen);
+    return len;
 }
 
 void soxr_process(soxr_t p,
     void const * in , size_t ilen0, size_t * idone0,
     void       * out, size_t olen , size_t * odone0)
 {
-  size_t ilen, idone, odone = 0;
-  bool flush_requested = false;
+    size_t ilen, idone, odone = 0;
+    bool flush_requested = false;
 
-  if (!in) {
-    flush_requested = true, ilen = ilen0 = 0;
-  } else {
-    if ((ptrdiff_t)ilen0 < 0) {
-      flush_requested = true, ilen0 = ~ilen0;
-    }
-    if (idone0 && (1 || flush_requested)) {
-      ilen = soxr_i_for_o(p, olen, ilen0);
+    if (!in) {
+        flush_requested = true;
+        ilen = 0;
+        ilen0 = 0;
     } else {
-      ilen = ilen0/*, olen = soxr_o_for_i(p, ilen, olen)*/;
+        ilen = ilen0;
     }
-  }
-  p->flushing |= ilen == ilen0 && flush_requested;
+    p->flushing |= ilen == ilen0 && flush_requested;
 
-  idone = ilen? soxr_input (p, in , ilen) : 0;
-  odone = soxr_output(p, out, olen);
+    idone = ilen? soxr_input (p, in , ilen) : 0;
+    odone = soxr_output(p, out, olen);
 
-  if (idone0) *idone0 = idone;
-  if (odone0) *odone0 = odone;
+    if (idone0) *idone0 = idone;
+    if (odone0) *odone0 = odone;
 }
