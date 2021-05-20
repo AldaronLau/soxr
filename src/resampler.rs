@@ -9,39 +9,31 @@ extern "C" {
 
 /// Process audio adding input and writing to output as many samples as possible.
 pub(crate) fn process(resampler: *mut c_void, in_: &[f32], out: &mut [f32]) -> usize {
-    let idone = input(resampler, in_.as_ptr(), in_.len());
-    let odone = output(resampler, out.as_mut_ptr(), out.len());
-
-    assert_eq!(idone, in_.len());
-
-    odone
+    input(resampler, in_);
+    output(resampler, out)
 }
 
 /// Flush to output.
-pub(crate) fn flush(resampler: *mut c_void, out: &mut [f32]) {
+pub(crate) fn flush(resampler: *mut c_void, out: &mut [f32]) -> usize {
     unsafe {
         resampler_flush(resampler);
     }
 
-    let odone = output(resampler, out.as_mut_ptr(), out.len());
-    
-    assert_eq!(odone, out.len());
+    output(resampler, out)
 }
 
-fn input(resampler: *mut c_void, inp: *const f32, len: usize) -> usize {
+fn input(resampler: *mut c_void, inp: &[f32]) {
     unsafe {
-        let chan = resampler_input(resampler, std::ptr::null(), len);
-        std::ptr::copy_nonoverlapping(inp, chan, len);
+        resampler_input(resampler, inp.as_ptr(), inp.len());
     };
-
-    return len;
 }
 
-fn output(resampler: *mut c_void, out: *mut f32, mut len: usize) -> usize {
+fn output(resampler: *mut c_void, out: &mut [f32]) -> usize {
+    let mut len = out.len();
+
     unsafe {
-        resampler_process(resampler, len);
-        let src = resampler_output(resampler, std::ptr::null_mut(), &mut len);
-        std::ptr::copy_nonoverlapping(src, out, len);
+        resampler_process(resampler, out.len());
+        resampler_output(resampler, out.as_mut_ptr(), &mut len);
     }
 
     return len;
