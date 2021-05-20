@@ -429,9 +429,3 @@ void resampler_flush(rate_t * p) {
   p->samples_in = 0;
   p->flushing = true;
 }
-
-// FIXME: Remove
-void resampler_sizes(size_t * shared, size_t * channel) {
-  *shared = sizeof(rate_shared_t);
-  *channel = sizeof(rate_t);
-}

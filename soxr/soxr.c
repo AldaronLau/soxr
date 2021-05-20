@@ -16,7 +16,6 @@ float* resampler_input(rate_t * p, float const * samples, size_t n);
 void resampler_process(struct rate * p, size_t olen);
 float const * resampler_output(struct rate * p, float * samples, size_t * n0);
 void resampler_flush(struct rate * p);
-void resampler_sizes(size_t * shared, size_t * channel);
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
 #include "cr.h"
