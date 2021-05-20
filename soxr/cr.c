@@ -216,7 +216,6 @@ char const * resampler_init(
 
   bool const maintain_3dB_pt = false;
   double tbw_tighten = 1.0;
-  #define tighten(x) (Fs0-(Fs0-(x))*tbw_tighten)
 
   double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0;
   double att = (bits + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
@@ -234,7 +233,7 @@ char const * resampler_init(
     printf("SDA LOOP\n");
   
     int try, L, M, x, maxL = -1 > 0? 1 : mode? 2048 :
-      (int)ceil(400 * 1000. / (U100_l * (int)sizeof(float)));
+      (int)ceil(400 * 1000. / (42 * (int)sizeof(float)));
     double d, epsilon = 0, frac;
     upsample = arbM < 1;
     for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
@@ -242,7 +241,7 @@ char const * resampler_init(
     postM = 1 + (arbM > 1 && preM), arbM /= postM;
     preL = 1 + (!preM && arbM < 2) + (upsample && mode), arbM *= preL;
     if ((frac = arbM - (int)arbM)!=0)
-      epsilon = fabs(floor(frac * MULT32 + .5) / (frac * MULT32) - 1);
+      epsilon = fabs(floor(frac * 4294967296.0 + .5) / (frac * 4294967296.0) - 1);
     for (i = 1, rational = frac==0; i <= maxL && !rational; ++i) {
       d = frac * i, try = (int)(d + .5);
       if ((rational = fabs(try / d - 1) <= epsilon)) {    /* No long doubles! */
@@ -292,6 +291,8 @@ char const * resampler_init(
   }
 
   if ((preM  * preL  != 1)) {
+    printf("UYOYEFOEJFEFIJEFIKJFEIEJFKEJAEKFNMA\n");
+  
     if (maintain_3dB_pt && 0) {    /* Trans. bands overlapping. */
       double x = tbw0 * _soxr_inv_f_resp(-3., att);
       x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
@@ -300,8 +301,19 @@ char const * resampler_init(
       }
     }
     Fn1 = preM? max(preL, preM) : arbM / arbL;
-    dft_stage_init(0, tighten(Fp1), Fs1, Fn1, att, phase_response, s++, preL,
-        max(preM, 1), 10, 17);
+    dft_stage_init(
+        0,
+        (Fs0-(Fs0-(Fp1))*tbw_tighten),
+        Fs1,
+        Fn1,
+        att,
+        phase_response,
+        s++,
+        preL,
+        max(preM, 1),
+        10,
+        17
+    );
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
             
@@ -356,9 +368,9 @@ char const * resampler_init(
     s->phase_bits = phase_bits;
     s->L = arbL;
 
-    s->at.whole = (int64_t)(at * MULT32 + .5);
-    s->step.whole = (int64_t)(arbM * MULT32 + .5);
-    s->out_in_ratio = MULT32 * arbL / (double)s->step.whole;
+    s->at.whole = (int64_t)(at * 4294967296.0 + .5);
+    s->step.whole = (int64_t)(arbM * 4294967296.0 + .5);
+    s->out_in_ratio = 4294967296.0 * arbL / (double)s->step.whole;
     // End higher-quality arb stage
 
   for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {

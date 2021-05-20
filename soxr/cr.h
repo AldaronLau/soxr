@@ -25,9 +25,6 @@ typedef struct {
     poly_fir1_t interp[1];
 } poly_fir_t;
 
-#define U100_l 42
-#define MULT32 (65536. * 65536.)
-
 /* Conceptually: coef_p is &coefs[num_phases][fir_len][interp_order+1]: */
 #define coef(coef_p, interp_order, fir_len, phase_num, coef_interp_num, fir_coef_num) (coef_p)[\
   (fir_len) * ((interp_order) + 1) * (phase_num) + \

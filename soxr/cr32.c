@@ -111,7 +111,7 @@ static poly_fir_t const poly_firs[] = {
     (poly_fir_t) {-1, {{0, vpoly0}}},
     (poly_fir_t) {-1, {{0, vpoly0}}},
 
-    (poly_fir_t) {10.62f, {{U100_l, U100_0}}},
+    (poly_fir_t) {10.62f, {{42, U100_0}}},
     (poly_fir_t) {11.28f, {{11, u100_0}}},
 
     (poly_fir_t) {-1, {{0, vpoly0}}},
