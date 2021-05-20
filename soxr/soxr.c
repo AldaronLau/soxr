@@ -7,15 +7,14 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "soxr.h"
 #include "internal.h"
 #include "cr.h"
 
 // Prototypes
-float* resampler_input(rate_t * p, float const * samples, size_t n);
-void resampler_process(struct rate * p, size_t olen);
-float const * resampler_output(struct rate * p, float * samples, size_t * n0);
-void resampler_flush(struct rate * p);
+float* resampler_input(resampler_t * p, float const * samples, size_t n);
+void resampler_process(resampler_t * p, size_t olen);
+float const * resampler_output(resampler_t * p, float * samples, size_t * n0);
+void resampler_flush(resampler_t * p);
 
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
@@ -23,7 +22,7 @@ resampler_t* soxr_create(double io_ratio) {
     resampler_t* p = calloc(sizeof(*p), 1);
 
     resampler_create(
-        &p->resampler,
+        p,
         &p->shared,
         io_ratio
     );

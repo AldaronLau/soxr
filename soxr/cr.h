@@ -4,6 +4,19 @@
 #if !defined soxr_cr_included
 #define soxr_cr_included
 
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+/* --------------------------- Type declarations ---------------------------- */
+
+typedef char const * soxr_error_t;                /* 0:no-error; non-0:error. */
+
+typedef void       * soxr_buf_t;  /* 1 buffer of channel-interleaved samples. */
+
+
+/* --------------------------- API main functions --------------------------- */
+
 #define  FIFO_SIZE_T int
 #include "fifo.h"
 
@@ -113,18 +126,27 @@ typedef struct {
   poly_fir_t const * poly_firs;
 } cr_core_t;
 
-typedef struct rate {
-  cr_core_t const * core;
-  double            io_ratio;
-  int64_t           samples_in;
-  int64_t           samples_out;
-  int               num_stages;
-  int               flushing;
-  stage_t*          stages;
-} rate_t;
+// Resampler for a single channel.
+typedef struct {
+    cr_core_t const * core;
+    double            io_ratio;
+    int64_t           samples_in;
+    int64_t           samples_out;
+    int               num_stages;
+    int               flushing;
+    stage_t*          stages;
+
+    rate_shared_t shared; /* Between channels. */
+} resampler_t;
+
+/* Create a stream resampler: */
+
+resampler_t* soxr_create(
+    double      io_rate      /* Input / Output sample-rate. */
+);
 
 char const * resampler_init(
-  rate_t * const p,                /* Per audio channel.                            */
+  resampler_t * const p,                /* Per audio channel.                            */
   rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
   cr_core_t const * const core);

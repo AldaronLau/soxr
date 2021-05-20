@@ -197,12 +197,10 @@ static struct half_fir_info const * find_half_fir(
   return &firs[i];
 }
 
-#include "soxr.h"
-
 #include "stdio.h"
 
 char const * resampler_init(
-  rate_t * const p,             /* Per audio channel. */
+  resampler_t * const p,             /* Per audio channel. */
   rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
   cr_core_t const * const core)
@@ -400,7 +398,7 @@ static bool stage_process(stage_t * stage, bool flushing) {
   return done && fifo_occupancy(fifo) < stage->input_size;
 }
 
-void resampler_process(rate_t * p, size_t olen) {
+void resampler_process(resampler_t * p, size_t olen) {
   int const n = p->flushing? min(-(int)p->samples_out, (int)olen) : (int)olen;
   stage_t * stage = &p->stages[p->num_stages];
   fifo_t * fifo = &stage->fifo;
@@ -409,21 +407,21 @@ void resampler_process(rate_t * p, size_t olen) {
     done = stage->is_input || stage_process(stage - 1, p->flushing);
 }
 
-float * resampler_input(rate_t * p, float const * samples, size_t n) {
+float * resampler_input(resampler_t * p, float const * samples, size_t n) {
   if (p->flushing)
     return 0;
   p->samples_in += (int64_t)n;
   return fifo_write(&p->stages[0].fifo, (int)n, samples);
 }
 
-float const * resampler_output(rate_t * p, float * samples, size_t * n0) {
+float const * resampler_output(resampler_t * p, float * samples, size_t * n0) {
   fifo_t * fifo = &p->stages[p->num_stages].fifo;
   int n = p->flushing? min(-(int)p->samples_out, (int)*n0) : (int)*n0;
   p->samples_out += n = min(n, fifo_occupancy(fifo));
   return fifo_read(fifo, (int)(*n0 = (size_t)n), samples);
 }
 
-void resampler_flush(rate_t * p) {
+void resampler_flush(resampler_t * p) {
   if (p->flushing) return;
   p->samples_out -= (int64_t)((double)p->samples_in / p->io_ratio + .5);
   p->samples_in = 0;
