@@ -18,10 +18,19 @@
 /* -------------------------------- Gubbins --------------------------------- */
 
 #include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+#include "cr.h"
 
 /* --------------------------- Type declarations ---------------------------- */
 
-typedef struct soxr * soxr_t;          /* A resampler for 1 or more channels. */
+// Resampler for a single channel.
+typedef struct {
+    rate_t resampler; /* For one channel. */
+    rate_shared_t shared; /* Between channels. */
+} resampler_t;
+
 typedef char const * soxr_error_t;                /* 0:no-error; non-0:error. */
 
 typedef void       * soxr_buf_t;  /* 1 buffer of channel-interleaved samples. */
@@ -31,6 +40,6 @@ typedef void       * soxr_buf_t;  /* 1 buffer of channel-interleaved samples. */
 
 /* Create a stream resampler: */
 
-soxr_t soxr_create(
+resampler_t* soxr_create(
     double      io_rate      /* Input / Output sample-rate. */
 );

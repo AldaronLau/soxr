@@ -113,9 +113,7 @@ typedef struct {
   poly_fir_t const * poly_firs;
 } cr_core_t;
 
-typedef struct rate rate_t;
-
-struct rate {
+typedef struct rate {
   cr_core_t const * core;
   double            io_ratio;
   int64_t           samples_in;
@@ -123,9 +121,7 @@ struct rate {
   int               num_stages;
   int               flushing;
   stage_t*          stages;
-};
-
-#include "soxr.h"
+} rate_t;
 
 char const * resampler_init(
   rate_t * const p,                /* Per audio channel.                            */

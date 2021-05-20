@@ -19,15 +19,8 @@ void resampler_flush(struct rate * p);
 
 char const * resampler_create(void * channel, void * shared, double io_ratio);
 
-#include "cr.h"
-
-struct soxr {
-    rate_t resampler; /* For one channel. */
-    rate_shared_t shared; /* Between channels. */
-};
-
-soxr_t soxr_create(double io_ratio) {
-    soxr_t p = calloc(sizeof(*p), 1);
+resampler_t* soxr_create(double io_ratio) {
+    resampler_t* p = calloc(sizeof(*p), 1);
 
     resampler_create(
         &p->resampler,
