@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
     float beta;
-    poly_fir1_t interp[1];
+    poly_fir1_t interp;
 } poly_fir_t;
 
 /* Conceptually: coef_p is &coefs[num_phases][fir_len][interp_order+1]: */
@@ -45,20 +45,10 @@ typedef struct {
   ((interp_order) - (coef_interp_num))]
 
 typedef union { /* Int64 in parts */
-  #if HAVE_BIGENDIAN
-  struct {int32_t ms; uint32_t ls;} parts;
-  #else
-  struct {uint32_t ls; int32_t ms;} parts;
-  #endif
   int64_t all;
 } int64p_t;
 
 typedef union { /* Uint64 in parts */
-  #if HAVE_BIGENDIAN
-  struct {uint32_t ms, ls;} parts;
-  #else
-  struct {uint32_t ls, ms;} parts;
-  #endif
   uint64_t all;
 } uint64p_t;
 
@@ -74,16 +64,11 @@ typedef struct { /* So generated filter coefs may be shared between channels */
   dft_filter_t dft_filter[2];
 } rate_shared_t;
 
-typedef double float_step_t; /* Or long double or __float128. */
-
-typedef union { /* Fixed point arithmetic */
-  struct {uint64p_t ls; int64p_t ms;} fix;  /* Hi-prec has ~96 bits. */
-  float_step_t flt;
+/* Hi-prec has ~96 bits. */
+typedef struct { /* Fixed point arithmetic */
+  uint64p_t ls;
+  int64p_t ms;
 } step_t;
-
-#define integer  fix.ms.parts.ms
-#define fraction fix.ms.parts.ls
-#define whole    fix.ms.all
 
 typedef int core_flags_t;
 
@@ -146,7 +131,7 @@ resampler_t* soxr_create(
 );
 
 char const * resampler_init(
-  resampler_t * const p,                /* Per audio channel.                            */
+  resampler_t * const p,           /* Per audio channel.                            */
   rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
   cr_core_t const * const core);

@@ -52,7 +52,8 @@ static void vpoly0(stage_t * p, fifo_t * output_fifo) {
   int num_in = min(stage_occupancy(p), p->input_size);
   if (num_in) {
     float const * input = stage_read_p(p);
-    int at = p->at.integer, step = p->step.integer;
+    int at = p->at.ms.all >> 32;
+    int step = p->step.ms.all >> 32;
     int i, num_out = (num_in * p->L - at + step - 1) / step;
     float * __restrict output = fifo_reserve(output_fifo, num_out);
 
@@ -71,32 +72,16 @@ static void vpoly0(stage_t * p, fifo_t * output_fifo) {
 
     assert(i == num_out);
     fifo_read(&p->fifo, at / p->L, NULL);
-    p->at.integer = at % p->L;
-  }
-}
-
-static void U100_0(stage_t * p, fifo_t * output_fifo) {
-  int num_in = min(stage_occupancy(p), p->input_size);
-  if (num_in) {
-    int at = p->at.integer, step = p->step.integer;
-    int i, num_out = (num_in * p->L - at + step - 1) / step;
-    float * __restrict output = fifo_reserve(output_fifo, num_out);
-
-    for (i = 0; at < num_in * p->L; ++i, at += step) {
-        float sum = 0;
-        output[i] = sum;
-    }
-
-    assert(i == num_out);
-    fifo_read(&p->fifo, at / p->L, NULL);
-    p->at.integer = at % p->L;
+    p->at.ms.all = (p->at.ms.all & 0x00000000FFFFFFFF)
+        | (uint64_t)(at % p->L) << 32;
   }
 }
 
 static void u100_0(stage_t * p, fifo_t * output_fifo) {
   int num_in = min(stage_occupancy(p), p->input_size);
   if (num_in) {
-    int at = p->at.integer, step = p->step.integer;
+    int at = p->at.ms.all >> 32;
+    int step = p->step.ms.all >> 32;
     int i, num_out = (num_in * p->L - at + step - 1) / step;
     float * __restrict output = fifo_reserve(output_fifo, num_out);
 
@@ -107,34 +92,35 @@ static void u100_0(stage_t * p, fifo_t * output_fifo) {
 
     assert(i == num_out);
     fifo_read(&p->fifo, at / p->L, NULL);
-    p->at.integer = at % p->L;
+    p->at.ms.all = (p->at.ms.all & 0x00000000FFFFFFFF)
+        | (uint64_t)(at % p->L) << 32;
   }
 }
 
 // Only vpoly0 is used it looks like
 static poly_fir_t const poly_firs[] = {
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
 
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
 
-    (poly_fir_t) {10.62f, {{42, U100_0}}},
-    (poly_fir_t) {11.28f, {{11, u100_0}}},
+    (poly_fir_t) {10.62f, {42, u100_0}},
+    (poly_fir_t) {11.28f, {11, u100_0}},
 
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
-    (poly_fir_t) {-1, {{0, vpoly0}}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
+    (poly_fir_t) {-1, {0, vpoly0}},
 };
 
 static cr_core_t const cr_core = (cr_core_t) {

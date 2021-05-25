@@ -65,10 +65,10 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo) {
   dft_filter_t const * f = &s->dft_filter[p->dft_filter_num];
   int const overlap = f->num_taps - 1;
 
-  if (p->at.integer + p->L * num_in >= f->dft_length) {
+  if ((p->at.ms.all >> 32) + p->L * num_in >= f->dft_length) {
     size_t const sizeof_real = sizeof(char) << 2;
 
-    div_t divd = div(f->dft_length - overlap - p->at.integer + p->L - 1, p->L);
+    div_t divd = div(f->dft_length - overlap - (p->at.ms.all >> 32) + p->L - 1, p->L);
     float const * input = fifo_read_ptr(&p->fifo);
     fifo_read(&p->fifo, divd.quot, NULL);
     num_in -= divd.quot;
@@ -98,24 +98,26 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo) {
         memcpy(dft_out, input, (size_t)f->dft_length * sizeof_real);
       else {
         memset(dft_out, 0, (size_t)f->dft_length * sizeof_real);
-        for (j = 0, i = p->at.integer; i < f->dft_length; ++j, i += p->L)
+        for (j = 0, i = (p->at.ms.all >> 32); i < f->dft_length; ++j, i += p->L)
           ((float *)dft_out)[i] = ((float *)input)[j];
-        p->at.integer = p->L - 1 - divd.rem;
+          
+        p->at.ms.all = (p->at.ms.all & 0x00000000FFFFFFFF)
+            | (uint64_t)(p->L - 1 - divd.rem) << 32;
       }
-      if (p->step.integer > 0)
+      if ((p->step.ms.all >> 32) > 0)
         rdft_forward(f->dft_length, dft_out);
       else
         rdft_forward(f->dft_length, dft_out);
     }
 
-    if (p->step.integer > 0) {
+    if ((p->step.ms.all >> 32) > 0) {
       _soxr_ordered_convolve_f(f->dft_length, NULL, dft_out, f->coefs);
       rdft_backward(f->dft_length, dft_out);
-      if (0 && p->step.integer == 1)
+      if (0 && (p->step.ms.all >> 32) == 1)
         memcpy(output, dft_out, (size_t)f->dft_length * sizeof_real);
-      if (p->step.integer != 1) {
+      if ((p->step.ms.all >> 32) != 1) {
         for (j = 0, i = p->remM; i < f->dft_length - overlap; ++j,
-              i += p->step.integer)
+              i += (p->step.ms.all >> 32))
         {
             ((float *)output)[j] = ((float *)dft_out)[i];
         }
@@ -125,13 +127,13 @@ static void dft_stage_fn(stage_t * p, fifo_t * output_fifo) {
         fifo_trim_by(output_fifo, overlap);
       }
     } else { /* F-domain */
-      int m = -p->step.integer;
+      int m = -(p->step.ms.all >> 32);
       _soxr_ordered_partial_convolve_f(f->dft_length >> m, dft_out, f->coefs);
       rdft_backward(f->dft_length >> m, dft_out);
       fifo_trim_by(output_fifo, (((1 << m) - 1) * f->dft_length + overlap) >>m);
     }
   }
-  p->input_size = (f->dft_length - p->at.integer + p->L - 1) / p->L;
+  p->input_size = (f->dft_length - (p->at.ms.all >> 32) + p->L - 1) / p->L;
 }
 
 /* Set to 4 x nearest power of 2 or half of that */
@@ -180,13 +182,15 @@ static void dft_stage_init(
   p->core_flags = 0;
   p->fn = dft_stage_fn;
   p->preload = f->post_peak / L;
-  p->at.integer = f->post_peak % L;
+  p->at.ms.all = (p->at.ms.all & 0x00000000FFFFFFFF)
+            | (uint64_t)(f->post_peak % L) << 32;
   p->L = L;
-  p->step.integer = f_domain_m? -M/2 : M;
+  p->step.ms.all = (p->at.ms.all & 0x00000000FFFFFFFF)
+            | (uint64_t)(f_domain_m? -M/2 : M) << 32;
   p->dft_filter_num = instance;
   p->block_len = f->dft_length - (f->num_taps - 1);
-  p->phase0 = p->at.integer / p->L;
-  p->input_size = (f->dft_length - p->at.integer + p->L - 1) / p->L;
+  p->phase0 = (p->at.ms.all >> 32) / p->L;
+  p->input_size = (f->dft_length - (p->at.ms.all >> 32) + p->L - 1) / p->L;
 }
 
 static struct half_fir_info const * find_half_fir(
@@ -205,41 +209,41 @@ char const * resampler_init(
   double const io_ratio,        /* Input rate divided by output rate. */
   cr_core_t const * const core)
 {
-  double bits = 20.0;
-  rolloff_t const rolloff = (rolloff_t)(0);
+    double bits = 20.0;
+    rolloff_t const rolloff = (rolloff_t)(0);
 
-  double const Fp0 = 0.913743653267622, Fs0 = 1.0;
+    double const Fp0 = 0.913743653267622, Fs0 = 1.0;
 
-  double const phase_response = 50.0, tbw0 = Fs0-Fp0;
+    double const phase_response = 50.0, tbw0 = Fs0-Fp0;
 
-  bool const maintain_3dB_pt = false;
-  double tbw_tighten = 1.0;
+    bool const maintain_3dB_pt = false;
+    double tbw_tighten = 1.0;
 
-  double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0;
-  double att = (bits + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
-  int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
-  bool upsample = false, rational = false, iOpt = true;
-  int n = 0;
-  int i;
-  int mode = ((int)ceil(bits) - 6) / 4;
-  struct half_fir_info const * half_fir_info;
-  stage_t * s;
+    double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0;
+    double att = (bits + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
+    int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
+    bool upsample = false, rational = false, iOpt = true;
+    int n = 0;
+    int i;
+    int mode = ((int)ceil(bits) - 6) / 4;
+    struct half_fir_info const * half_fir_info;
+    stage_t * s;
 
-  p->core = core;
-  p->io_ratio = io_ratio;
-  if (bits!=0) while (!n++) {                            /* Determine stages: */
-    printf("SDA LOOP\n");
+    p->core = core;
+    p->io_ratio = io_ratio;
+    if (bits!=0) while (!n++) {                            /* Determine stages: */
+        printf("SDA LOOP\n");
   
-    int try, L, M, x, maxL = -1 > 0? 1 : mode? 2048 :
-      (int)ceil(400 * 1000. / (42 * (int)sizeof(float)));
-    double d, epsilon = 0, frac;
-    upsample = arbM < 1;
-    for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
-    preM = upsample || (arbM > 1.5 && arbM < 2);
-    postM = 1 + (arbM > 1 && preM), arbM /= postM;
-    preL = 1 + (!preM && arbM < 2) + (upsample && mode), arbM *= preL;
-    if ((frac = arbM - (int)arbM)!=0)
-      epsilon = fabs(floor(frac * 4294967296.0 + .5) / (frac * 4294967296.0) - 1);
+        int try, L, M, x, maxL = -1 > 0? 1 : mode? 2048 :
+            (int)ceil(400 * 1000. / (42 * (int)sizeof(float)));
+        double d, epsilon = 0, frac;
+        upsample = arbM < 1;
+        for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
+        preM = upsample || (arbM > 1.5 && arbM < 2);
+        postM = 1 + (arbM > 1 && preM), arbM /= postM;
+        preL = 1 + (!preM && arbM < 2) + (upsample && mode), arbM *= preL;
+        if ((frac = arbM - (int)arbM)!=0)
+            epsilon = fabs(floor(frac * 4294967296.0 + .5) / (frac * 4294967296.0) - 1);
     for (i = 1, rational = frac==0; i <= maxL && !rational; ++i) {
       d = frac * i, try = (int)(d + .5);
       if ((rational = fabs(try / d - 1) <= epsilon)) {    /* No long doubles! */
@@ -314,32 +318,37 @@ char const * resampler_init(
     );
     Fp1 /= Fn1, Fs1 /= Fn1;
   }
-            
+
     /* Higher quality arb stage: */
     printf("YYYYYYYYO!\n");
     static const float rolloffs[] = {-.01f, -.3f, 0, -.103f};
     poly_fir_t const * f = &core->poly_firs[6*(upsample+!!preM)+mode-!upsample];
-    int order, num_coefs = (int)f->interp[0].scalar, phase_bits, phases;
+    int order, num_coefs = (int)f->interp.scalar, phase_bits, phases;
     size_t coefs_size;
     double at, Fp = Fp1, Fs, Fn, mult = upsample? 1 : arbM / arbL;
     poly_fir1_t const * f1;
 
-    if (!upsample && preM)
-      Fn = 2 * mult, Fs = 3 + fabs(Fs1 - 1);
-    else Fn = 1, Fs = 2 - (mode? Fp1 + (Fs1 - Fp1) * .7 : Fs1);
+    if (!upsample && preM) {
+        Fn = 2 * mult, Fs = 3 + fabs(Fs1 - 1);
+    } else {
+        Fn = 1;
+        Fs = 2 - (mode? Fp1 + (Fs1 - Fp1) * .7 : Fs1);
+    }
 
-    if (mode)
-      Fp = Fs - (Fs - Fp) / (1 - _soxr_inv_f_resp(rolloffs[rolloff], attArb));
+    if (mode) {
+        Fp = Fs - (Fs - Fp) / (1 - _soxr_inv_f_resp(rolloffs[rolloff], attArb));
+    }
 
     i = (-1 < 0? !rational : !rational) - 1;
     do {
-      f1 = &f->interp[++i];
+      i += 1;
+      f1 = &f->interp;
       assert(f1->fn);
       if (i)
         arbM /= arbL, arbL = 1, rational = false;
       phase_bits = (int)ceil(f1->scalar - log(mult)/log(2.));
       phases = !rational? (1 << phase_bits) : arbL;
-      if (f->interp[0].scalar==0) {
+      if (f->interp.scalar==0) {
         int phases0 = max(phases, 19), n0 = 0;
         _soxr_design_lpf(Fp, Fs, -Fn, attArb, &n0, phases0, f->beta);
         num_coefs = n0 / phases0 + 1, num_coefs += num_coefs & !preM;
@@ -349,7 +358,7 @@ char const * resampler_init(
       at = arbL * (s->phase0 = .5 * (num_coefs & 1));
       order = i + (i && mode > 4);
       coefs_size = (size_t)(num_coefs * phases * (order+1)) * sizeof(float);
-    } while (i < 2 && f->interp[i+1].fn && coefs_size / 1000 > 400);
+    } while (i < 2 && f->interp.fn && coefs_size / 1000 > 400);
 
     if (!s->shared->poly_fir_coefs) {
       int num_taps = num_coefs * phases - 1;
@@ -366,9 +375,9 @@ char const * resampler_init(
     s->phase_bits = phase_bits;
     s->L = arbL;
 
-    s->at.whole = (int64_t)(at * 4294967296.0 + .5);
-    s->step.whole = (int64_t)(arbM * 4294967296.0 + .5);
-    s->out_in_ratio = 4294967296.0 * arbL / (double)s->step.whole;
+    s->at.ms.all = (int64_t)(at * 4294967296.0 + .5);
+    s->step.ms.all = (int64_t)(arbM * 4294967296.0 + .5);
+    s->out_in_ratio = 4294967296.0 * arbL / (double)s->step.ms.all;
     // End higher-quality arb stage
 
   for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {

@@ -14,6 +14,5 @@ fn main() {
         .extra_warnings(false)
         .flag("-w")
 */
-        .define("HAVE_BIGENDIAN", Some("0"))
         .compile("soxr");
 }
