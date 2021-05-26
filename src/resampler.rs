@@ -24,19 +24,15 @@ extern "C" {
     fn resampler_flush(rate: *mut Resampler);
     fn resampler_init(
         p: *mut Resampler,         /* Per audio channel. */
-        shared: *mut RateShared,    /* By channels undergoing same rate change. */
         io_ratio: f64,          /* Input rate divided by output rate. */
         core: *const CrCore,
     ) -> *const c_char;
 }
 
-pub(crate) fn new(io_ratio: f64) -> *mut Resampler {
+pub(crate) fn new(io_ratio: f64) -> Resampler {
     unsafe {
-        let resampler = Box::<Resampler>::new(std::mem::zeroed());
-        let resampler = Box::leak(resampler);
-
-        resampler_init(resampler, &mut (*resampler).shared, io_ratio, CR32);
-
+        let mut resampler = std::mem::zeroed();
+        resampler_init(&mut resampler, io_ratio, CR32);
         resampler
     }
 }

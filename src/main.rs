@@ -8,11 +8,11 @@ fn resample_channel(input: Vec<f32>, hz_in: f64, hz_out: f64) -> Vec<f32> {
     let mut output = vec![0.0; out_size.round() as usize];
 
     // Sample to 44100 from 48000
-    let resampler = resampler::new(hz_in / hz_out);
+    let mut resampler = resampler::new(hz_in / hz_out);
 
     // Resample the whole thing at once.
-    let x = resampler::process(resampler, &input, &mut output);
-    resampler::flush(resampler, &mut output[x..]);
+    let x = resampler::process(&mut resampler, &input, &mut output);
+    resampler::flush(&mut resampler, &mut output[x..]);
 
     output
 }

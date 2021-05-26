@@ -207,90 +207,114 @@ static struct half_fir_info const * find_half_fir(
 
 char const * resampler_init(
   resampler_t * const p,             /* Per audio channel. */
-  rate_shared_t * const shared, /* By channels undergoing same rate change. */
   double const io_ratio,        /* Input rate divided by output rate. */
   cr_core_t const * const core)
 {
-    double bits = 20.0;
-    rolloff_t const rolloff = (rolloff_t)(0);
+    double const bits = 20.0;
+    double const Fp0 = 0.913743653267622;
+    double const Fs0 = 1.0;
+    double const phase_response = 50.0;
 
-    double const Fp0 = 0.913743653267622, Fs0 = 1.0;
-
-    double const phase_response = 50.0, tbw0 = Fs0-Fp0;
-
-    bool const maintain_3dB_pt = false;
-    double tbw_tighten = 1.0;
-
-    double arbM = io_ratio, Fn1, Fp1 = Fp0, Fs1 = Fs0;
-    double att = (bits + 1) * linear_to_dB(2.0), attArb = att; /* +1: pass+stop */
-    int preL = 1, preM = 1, shr = 0, arbL = 1, postL = 1, postM = 1;
-    bool upsample = false, rational = false, iOpt = true;
+    double arbM = io_ratio;
+    double Fn1;
+    double Fp1 = Fp0;
+    double Fs1 = Fs0;
+    double att = (bits + 1) * linear_to_dB(2.0);
+    double attArb = att; /* +1: pass+stop */
+    int preL = 1;
+    int preM = 1;
+    int shr = 0;
+    int arbL = 1;
+    int postL = 1;
+    int postM = 1;
+    bool rational = false;
+    bool iOpt = true;
     int n = 0;
     int i;
     int mode = ((int)ceil(bits) - 6) / 4;
-    struct half_fir_info const * half_fir_info;
     stage_t * s;
 
     p->core = core;
     p->io_ratio = io_ratio;
-    if (bits!=0) while (!n++) {                            /* Determine stages: */
-        printf("SDA LOOP\n");
-  
-        int try, L, M, x, maxL = -1 > 0? 1 : mode? 2048 :
-            (int)ceil(400 * 1000. / (42 * (int)sizeof(float)));
-        double d, epsilon = 0, frac;
-        upsample = arbM < 1;
-        for (i = (int)(.5 * arbM), shr = 0; i >>= 1; arbM *= .5, ++shr);
-        preM = upsample || (arbM > 1.5 && arbM < 2);
-        postM = 1 + (arbM > 1 && preM), arbM /= postM;
-        preL = 1 + (!preM && arbM < 2) + (upsample && mode), arbM *= preL;
-        if ((frac = arbM - (int)arbM)!=0) {
-            epsilon =
-                fabs(floor(frac * 4294967296.0 + .5) / (frac * 4294967296.0) - 1);
-        }
-        for (i = 1, rational = frac==0; i <= maxL && !rational; ++i) {
-            d = frac * i, try = (int)(d + .5);
-            if ((rational = fabs(try / d - 1) <= epsilon)) {    /* No long doubles! */
-                if (try == i)
-                    arbM = ceil(arbM), shr += x = arbM > 3, arbM /= 1 + x;
-                else arbM = i * (int)arbM + try, arbL = i;
+
+    /* Determine stages: */
+    n += 1;
+    printf("SDA LOOP %d %d\n", mode, n);
+
+    int try;
+    int L;
+    int M;
+    int x;
+    double d;
+    double epsilon = 0.0;
+    double frac;
+
+    bool const upsample = io_ratio < 1;
+
+    for (i = (int)(0.5 * io_ratio), shr = 0; i >>= 1; arbM *= .5, ++shr);
+
+    preM = upsample || (arbM > 1.5 && arbM < 2);
+    postM = 1 + (arbM > 1 && preM), arbM /= postM;
+    preL = 1 + (!preM && arbM < 2) + (upsample && mode), arbM *= preL;
+    if ((frac = arbM - (int)arbM)!=0) {
+        epsilon =
+            fabs(floor(frac * 4294967296.0 + .5) / (frac * 4294967296.0) - 1);
+    }
+    for (i = 1, rational = frac == 0; i <= 2048 && !rational; ++i) {
+        d = frac * i, try = (int)(d + .5);
+        if ((rational = fabs(try / d - 1) <= epsilon)) {    // No long doubles!
+            if (try == i) {
+                arbM = ceil(arbM);
+                x = arbM > 3;
+                shr += x;
+                arbM /= 1 + x;
+            } else {
+                arbM = i * (int)arbM + try;
+                arbL = i;
             }
         }
-        L = preL * arbL, M = (int)(arbM * postM), x = (L|M)&1, L >>= !x, M >>= !x;
-        if (iOpt && postL == 1 && (d = preL * arbL / arbM) > 4 && d != 5) {
-            for (postL = 4, i = (int)(d / 16); (i >>= 1) && postL < 256; postL <<= 1);
-            arbM = arbM * postL / arbL / preL, arbL = 1, n = 0;
-        } else if (rational && (max(L, M) < 3 + 2 * iOpt || L * M < 6 * iOpt)) {
-            preL = L, preM = M, arbM = arbL = postM = 1;
-        }
-        if (!mode && (!rational || !n)) {
-            ++mode;
-            n = 0;
-        }
     }
-  
+    L = preL * arbL, M = (int)(arbM * postM), x = (L|M)&1, L >>= !x, M >>= !x;
+    if (iOpt && postL == 1 && (d = preL * arbL / arbM) > 4 && d != 5) {
+        for (postL = 4, i = (int)(d / 16); (i >>= 1) && postL < 256; postL <<= 1);
+        arbM = arbM * postL / arbL / preL;
+        arbL = 1;
+        n = 0;
+    } else if (rational && (max(L, M) < 3 + 2 * iOpt || L * M < 6 * iOpt)) {
+        preL = L;
+        preM = M;
+        arbM = 1;
+        arbL = 1;
+        postM = 1;
+    }
+    // End determine stages.
+
     printf("THIS = %d %d\n", preM, preL);
 
-    p->num_stages = shr + (preM  * preL  != 1) + (arbM  * arbL  != 1);
+    p->num_stages = shr + (preM * preL != 1) + (arbM * arbL != 1);
 
     p->stages = calloc((size_t)p->num_stages + 1, sizeof(*p->stages));
 
     for (i = 0; i < p->num_stages; ++i) {
         p->stages[i].num = i;
-        p->stages[i].shared = shared;
+        p->stages[i].shared = &p->shared;
         p->stages[i].input_size = 8192;
     }
     p->stages[0].is_input = true;
 
-    double alpha = 1 / io_ratio;
-
-    if ((n = p->num_stages) > 1) {                              /* Att. budget: */
-        if ((arbM  * arbL  != 1))
+    /* Att. budget: */
+    if ((n = p->num_stages) > 1) {
+        if ((arbM * arbL  != 1))
             att += linear_to_dB(2.), attArb = att, --n;
         att += linear_to_dB((double)n);
     }
 
-    half_fir_info = find_half_fir(core->half_firs, core->half_firs_len, att);
+    struct half_fir_info const * half_fir_info = find_half_fir(
+        core->half_firs,
+        core->half_firs_len,
+        att
+    );
+
     for (i = 0, s = p->stages; i < shr; ++i, ++s) {
         s->fn = NULL;
         s->coefs = half_fir_info->coefs;
@@ -302,64 +326,67 @@ char const * resampler_init(
 
     if ((preM  * preL  != 1)) {
         printf("UYOYEFOEJFEFIJEFIKJFEIEJFKEJAEKFNMA\n");
-  
-        if (maintain_3dB_pt && 0) {    /* Trans. bands overlapping. */
-            double x = tbw0 * _soxr_inv_f_resp(-3., att);
-            x = -_soxr_f_resp(x / (max(2 * alpha - Fs0, alpha) - Fp0), att);
-            if (x > .035) {
-                tbw_tighten = ((4.3074e-3 - 3.9121e-4 * x) * x - .040009) * x + 1.0014;
-            }
-        }
+
         Fn1 = preM? max(preL, preM) : arbM / arbL;
         dft_stage_init(
             0,
-            (Fs0-(Fs0-(Fp1))*tbw_tighten),
+            Fs0-(Fs0-(Fp1)),
             Fs1,
             Fn1,
             att,
             phase_response,
-            s++,
+            s,
             preL,
             max(preM, 1),
             10,
             17
         );
+        s += 1;
         Fp1 /= Fn1;
         Fs1 /= Fn1;
     }
 
     /* Higher quality arb stage: */
     printf("YYYYYYYYO!\n");
-    static const float rolloffs[] = {-.01f, -.3f, 0, -.103f};
     poly_fir_t const * f = &core->poly_firs[6*(upsample+!!preM)+mode-!upsample];
-    int order, num_coefs = (int)f->interp.scalar, phase_bits, phases;
+    int order;
+    int num_coefs = (int)f->interp.scalar;
+    int phase_bits;
+    int phases;
     size_t coefs_size;
-    double at, Fp = Fp1, Fs, Fn, mult = upsample? 1 : arbM / arbL;
+    double at;
+    double Fs;
+    double Fn;
+    double mult = upsample ? 1.0 : arbM / arbL;
     poly_fir1_t const * f1;
 
     if (!upsample && preM) {
-        Fn = 2 * mult, Fs = 3 + fabs(Fs1 - 1);
+        Fn = 2 * mult;
+        Fs = 3 + fabs(Fs1 - 1);
     } else {
         Fn = 1;
-        Fs = 2 - (mode? Fp1 + (Fs1 - Fp1) * .7 : Fs1);
+        Fs = 2 - (mode? Fp1 + (Fs1 - Fp1) * 0.7 : Fs1);
     }
 
     if (mode) {
-        Fp = Fs - (Fs - Fp) / (1 - _soxr_inv_f_resp(rolloffs[rolloff], attArb));
+        Fp1 = Fs - (Fs - Fp1) / (1 - _soxr_inv_f_resp(-.01f, attArb));
     }
 
-    i = (-1 < 0? !rational : !rational) - 1;
+    i = !rational - 1;
     do {
       i += 1;
       f1 = &f->interp;
       assert(f1->fn);
-      if (i)
-        arbM /= arbL, arbL = 1, rational = false;
+      if (i) {
+        arbM /= arbL;
+        arbL = 1;
+        rational = false;
+      }
       phase_bits = (int)ceil(f1->scalar - log(mult)/log(2.));
       phases = !rational? (1 << phase_bits) : arbL;
       if (f->interp.scalar==0) {
         int phases0 = max(phases, 19), n0 = 0;
-        _soxr_design_lpf(Fp, Fs, -Fn, attArb, &n0, phases0, f->beta);
+        _soxr_design_lpf(Fp1, Fs, -Fn, attArb, &n0, phases0, f->beta);
         num_coefs = n0 / phases0 + 1, num_coefs += num_coefs & !preM;
       }
       if ((num_coefs & 1) && rational && (arbL & 1))
@@ -372,7 +399,7 @@ char const * resampler_init(
     if (!s->shared->poly_fir_coefs) {
       int num_taps = num_coefs * phases - 1;
       double * coefs = _soxr_design_lpf(
-          Fp, Fs, Fn, attArb, &num_taps, phases, f->beta);
+          Fp1, Fs, Fn, attArb, &num_taps, phases, f->beta);
       s->shared->poly_fir_coefs = prepare_poly_fir_coefs(
           coefs, num_coefs, phases, order, 0);
       free(coefs);
@@ -384,20 +411,20 @@ char const * resampler_init(
     s->phase_bits = phase_bits;
     s->L = arbL;
 
-    s->at.ms.all = (int64_t)(at * 4294967296.0 + .5);
-    s->step.ms.all = (int64_t)(arbM * 4294967296.0 + .5);
+    s->at.ms.all = (int64_t)(at * 4294967296.0 + 0.5);
+    s->step.ms.all = (int64_t)(arbM * 4294967296.0 + 0.5);
     s->out_in_ratio = 4294967296.0 * arbL / (double)s->step.ms.all;
     // End higher-quality arb stage
 
-  for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {
-    printf(" KI %d\n", i);
+    for (i = 0, s = p->stages; i < p->num_stages; i += 1, s += 1) {
+        printf(" KI %d\n", i);
   
+        fifo_create(&s->fifo, (int)sizeof(float));
+        memset(fifo_reserve(&s->fifo, s->preload), 0,
+            sizeof(float) * (size_t)s->preload);
+    }
     fifo_create(&s->fifo, (int)sizeof(float));
-    memset(fifo_reserve(&s->fifo, s->preload), 0,
-        sizeof(float) * (size_t)s->preload);
-  }
-  fifo_create(&s->fifo, (int)sizeof(float));
-  return 0;
+    return 0;
 }
 
 static bool stage_process(stage_t * stage, bool flushing) {

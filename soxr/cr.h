@@ -132,7 +132,6 @@ resampler_t* soxr_create(
 
 char const * resampler_init(
   resampler_t * const p,           /* Per audio channel.                            */
-  rate_shared_t * const shared,    /* Between channels (undergoing same rate change)*/
   double const io_ratio,           /* Input rate divided by output rate.            */
   cr_core_t const * const core);
 
